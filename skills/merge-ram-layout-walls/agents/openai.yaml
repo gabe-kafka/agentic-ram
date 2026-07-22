@@ -1,4 +1,4 @@
 interface:
-  display_name: "Merge RAM Layout Walls"
-  short_description: "Safely merge RAM walls between layouts"
-  default_prompt: "Use $merge-ram-layout-walls to merge walls from one RAM layout into another without overwriting the source RSS."
+  display_name: "Wall Integration Skill"
+  short_description: "Safely integrate RAM walls between layouts"
+  default_prompt: "Use $merge-ram-layout-walls to integrate all walls from one RAM layout into an earlier empty layout without overwriting the source model."

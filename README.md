@@ -7,13 +7,13 @@ Local tools for Bentley RAM Structural System 2025.
 - Create and launch a blank RAM `.rss` model.
 - Open an existing `.rss` model in RAM Manager.
 - Confirm the safe RAM DataAccess COM hook and print the loaded working model path.
-- Merge a validated contiguous layout-column block into an earlier layout without overwriting the source RSS.
+- Move a validated complete steel gravity-column block into an earlier empty layout without overwriting the source RSS.
 - Move a validated complete wall block into an earlier empty layout without overwriting the source RSS.
 
 ## Included skills
 
-- `skills/merge-ram-layout-columns` packages the proven column-layout merge workflow.
-- `skills/merge-ram-layout-walls` packages the proven wall-layout reassignment workflow.
+- **Wall Integration Skill** (`skills/merge-ram-layout-walls`) packages the proven wall-layout reassignment workflow.
+- **Column Integration Skill** (`skills/merge-ram-layout-columns`) packages the guarded column-layout migration workflow.
 
 Both skills validate RAM's floor metadata before editing and always create a separate output model.
 

@@ -1,9 +1,9 @@
 ---
 name: merge-ram-layout-walls
-description: Safely reassign a complete contiguous Bentley RAM Structural System wall block from one floor/layout type to an earlier empty target layout in an RSS archive. Use when a user asks to move or merge RAM walls between layouts without overwriting the source model.
+description: Wall Integration Skill for safely reassigning a complete contiguous Bentley RAM Structural System wall block from one floor/layout type to an earlier empty target layout in an RSS archive. Use when a user asks to integrate, move, or merge RAM walls between layouts without overwriting the source model.
 ---
 
-# Merge RAM Layout Walls
+# Wall Integration Skill
 
 Operate only on a new output copy. Never overwrite the source `.rss` file.
 
@@ -14,16 +14,21 @@ Operate only on a new output copy. Never overwrite the source `.rss` file.
 3. Run:
 
 ```powershell
-python scripts/merge-ram-layout-walls.py SOURCE.rss OUTPUT.rss --source-floor SOURCE_INDEX --target-floor TARGET_INDEX
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/merge-ram-layout-walls.ps1 `
+  -Source SOURCE.rss -Output OUTPUT.rss `
+  -SourceFloor SOURCE_INDEX -TargetFloor TARGET_INDEX
 ```
 
-4. Verify the output ZIP integrity and re-read the `.flt` wall counts before delivery.
+The wrapper locates Python from the Codex bundled runtime, `python`, or `py`.
+Pass `-PythonPath` when none of those are available.
+
+4. Verify the output ZIP integrity, preserved archive metadata, and re-read the `.flt` wall counts before delivery.
 5. Open only the output model in RAM for visual confirmation.
 
 ## Safety
 
 - Stop if the output already exists.
 - Do not splice partial, interleaved, or noncontiguous wall blocks.
-- Preserve every archive member except the validated `.flt` floor metadata.
+- Preserve every archive member and the ZIP archive metadata; change only the validated `.flt` floor metadata payload.
 - This workflow moves the wall block: the target receives all walls and the source becomes empty.
 - Keep backups and generated RSS files out of version control.

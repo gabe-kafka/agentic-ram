@@ -9,3 +9,7 @@ out/*
 *.backup
 *.usr
 *.SSR
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]

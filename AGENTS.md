@@ -8,6 +8,12 @@ This repository contains local Bentley RAM Structural System API tools.
 - `scripts/open-ram-model.ps1`
 - `scripts/test-ram-api-hook.ps1`
 
+## Repository skills
+
+- Use **Wall Integration Skill** (`skills/merge-ram-layout-walls`) when asked to move a validated complete wall block from one RAM floor/layout type into an earlier empty layout. Run its bundled script and preserve the source `.rss`.
+- Use **Column Integration Skill** (`skills/merge-ram-layout-columns`) when asked to move a validated complete steel gravity-column block into an earlier empty layout. Run its bundled script and preserve the source `.rss`.
+- Read the selected skill's `SKILL.md` before operating on an RSS archive, and open only the generated output model in RAM for visual validation.
+
 ## RAM API lessons
 
 - Hook RAM through the native COM component `RAMDataAccess.RamDataAccess1`.

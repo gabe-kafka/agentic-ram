@@ -9,7 +9,6 @@ entire W3D wall array.
 from __future__ import annotations
 
 import argparse
-import io
 import struct
 import zipfile
 from pathlib import Path
@@ -89,9 +88,12 @@ def main() -> int:
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(args.output, "w") as output:
+            output.comment = archive.comment
             for info in infos:
                 payload = bytes(floors) if info.filename == flt_info.filename else archive.read(info)
+                original_external_attr = info.external_attr
                 output.writestr(info, payload)
+                info.external_attr = original_external_attr
 
     print(f"Created: {args.output}")
     print(f"Reassigned {source_count} walls from floor index {args.source_floor} to {args.target_floor}")
