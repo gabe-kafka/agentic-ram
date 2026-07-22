@@ -1,0 +1,11 @@
+# Local RAM models and generated files
+models/ram/*
+!models/ram/.gitkeep
+out/*
+!out/.gitkeep
+
+*.ram
+*.rss
+*.backup
+*.usr
+*.SSR

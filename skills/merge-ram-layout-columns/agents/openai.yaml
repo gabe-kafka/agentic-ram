@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge RAM Layout Columns"
+  short_description: "Safely merge RAM columns between layouts"
+  default_prompt: "Use $merge-ram-layout-columns to merge columns from one RAM layout into another without overwriting the source RSS."

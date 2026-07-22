@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge RAM Layout Walls"
+  short_description: "Safely merge RAM walls between layouts"
+  default_prompt: "Use $merge-ram-layout-walls to merge walls from one RAM layout into another without overwriting the source RSS."
