@@ -81,9 +81,9 @@ def main() -> int:
             raise SystemExit("Source column block is not contiguous with the target block")
 
         merged_count = target_count + source_count
-        merged_last_label = max(
-            u32(floors, target_base + LAST_COLUMN_LABEL_OFFSET),
-            u32(floors, source_base + LAST_COLUMN_LABEL_OFFSET),
+        merged_last_label = (
+            u32(floors, target_base + LAST_COLUMN_LABEL_OFFSET)
+            + u32(floors, source_base + LAST_COLUMN_LABEL_OFFSET)
         )
         put_u32(floors, target_base + COLUMN_COUNT_OFFSET, merged_count)
         put_u32(floors, target_base + COLUMN_START_OFFSET, 0)
