@@ -1,0 +1,4 @@
+interface:
+  display_name: "Line Load Merge Skill"
+  short_description: "Safely merge RAM line-load properties"
+  default_prompt: "Use $merge-ram-line-load-properties to add validated line-load definitions to a separate RAM RSS copy."
