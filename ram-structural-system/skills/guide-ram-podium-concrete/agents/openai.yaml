@@ -1,0 +1,4 @@
+interface:
+  display_name: "Guide RAM Podium Concrete"
+  short_description: "Hand-guide Frame and Concrete podium workflow"
+  default_prompt: "Use $guide-ram-podium-concrete to walk the next RAM Modeler, Frame, or Concrete click for a podium story-force pass."

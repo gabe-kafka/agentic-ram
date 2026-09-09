@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAM Concrete Footing Design"
+  short_description: "Design RAM spread footings from Concept forces"
+  default_prompt: "Use $concrete-footing-design-ram to load verified RAM Concept reactions and design spread footings in RAM Foundation."

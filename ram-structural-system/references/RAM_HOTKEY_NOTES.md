@@ -2,7 +2,7 @@
 
 The shared AutoHotkey v2 script is:
 
-`scripts/ram-modeler-hotkeys.ahk`
+`ram-structural-system/scripts/ram-modeler-hotkeys.ahk`
 
 The installed interpreter is normally:
 
@@ -22,10 +22,17 @@ This is distinct from the line-load property-definition table:
 
 `PropTable > Loads > Line`
 
+## Ctrl+G command
+
+`Ctrl+G` opens the RAM Modeler construction-grid dialog:
+
+`Layout > Grids > Construction Grids`
+
 ## Reliable implementation pattern
 
 1. Restrict the hotkey to `RamModeler.exe`.
-2. First attempt `WinMenuSelectItem` using menu captions.
+2. First attempt AutoHotkey v2 `MenuSelect` using menu captions or exact
+   positional selectors.
 3. Pass an explicit empty string for `WinText`; do not leave the argument unset.
 4. If the menu call throws, first test whether the expected RAM dialog already
    opened. RAM can invalidate its menu during a successful command and make the
@@ -34,16 +41,27 @@ This is distinct from the line-load property-definition table:
 6. Release the triggering modifier with `KeyWait` before sending mnemonics.
 7. Validate using a stable window-title prefix because RAM's layout and property
    dialogs do not share one exact title.
+8. For commands whose dialog title varies by RAM version, capture the active
+   Modeler window handle before invoking the command and verify that it loses
+   activation to the modal child.
 
 ## Failure history
 
-- `WinMenuSelectItem("A", , ...)` failed in AutoHotkey v2 because the omitted
-  argument was treated as an unset local variable. Use
-  `WinMenuSelectItem("A", "", ...)`.
+- `WinMenuSelectItem` is not the AutoHotkey v2 function name in the installed
+  runtime; invoking it produced the "local variable has not been assigned"
+  error. Use `MenuSelect`.
+- `MenuSelect("A", , ...)` also leaves an argument unset. Pass an explicit
+  empty string: `MenuSelect("A", "", ...)`.
 - The direct menu command opened Line Loads but then threw while RAM replaced
   the menu with its modal dialog. The fallback ran unnecessarily and displayed
   an error. Checking for an active `Line Load` window immediately inside the
   catch block fixed the false error.
+- Duplicate keyboard mnemonics resolved Construction Grids to the neighboring
+  `Create/Edit` command, which opened Add Grid. Use `MenuSelect` position `4&`
+  in the Grids submenu; positional selectors count separators.
+- Construction Grids uses a version-specific dialog title. A title-prefix check
+  reported false failure after the command ran, so this shortcut verifies that
+  the original Modeler window loses activation to RAM's modal child instead.
 - Repeated launches left duplicate helper processes during testing. Stop the
   duplicates and restart one clean process after script changes.
 

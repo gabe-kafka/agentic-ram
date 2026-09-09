@@ -1,0 +1,76 @@
+# RAM Concept slab-options notes
+
+Office GUI workflow for a transfer-slab option review. The shared-drive PDF
+controls if this summary conflicts. Keep project option thickness, mix, and
+report counts in `eng-agent`.
+
+Prerequisite: initial RAM Concept review, loading, geometry, and design-info
+import are complete and approved.
+
+## Review order
+
+Office PDF default:
+
+1. Deflection, then adjust the slab option.
+2. Two-way punching, then radius, drop caps, beams, walls, or thickness.
+3. Temporary full-width one-way shear.
+4. Quantities into the comparison spreadsheet.
+5. PDF report.
+
+A project meeting may override that order (for example punching before
+deflection). Follow the project sequence when one is recorded.
+
+Batch a reasonable set of geometry changes, then `Calc All`. Recheck punching,
+deflection, and reinforcement after each meaningful iteration.
+
+## Deflection (office PDF)
+
+- Maximum plotted deflection: 2 in.
+- Sustained plus immediate live minus initial dead: `L/240`, and `L/480` at
+  the perimeter.
+- Immediate live: `L/360`.
+
+A brick `L/600` plot appears in some examples. Confirm it per project. If a
+span fails, consider beams, higher `f'c`, thickness, columns, or walls.
+
+Difference plots must subtract the correct attachment loading. Wrong
+attachment layer = wrong difference.
+
+## Punching
+
+- Review the status plan and the checks plan.
+- Interior fail with USR `< 2.0`: try a larger maximum search radius.
+- Interior fail with USR `>= 2.0`: drop cap is the usual next move.
+- Punching audit: if the larger perimeter governs, widen the drop cap; if the
+  smaller governs, thicken the slab.
+- `Criteria > Materials > SSR Systems > Stud Spacing`: use `Auto Calc` for
+  transfer-slab constructability review. Default `Code Max` can place many
+  widely spaced rails on short column faces.
+- `No cutoff section`: increase search radius in about 2 ft steps. About 12 ft
+  is a practical troubleshooting ceiling, not a code limit. A larger radius
+  still needs a reasonable rail layout.
+- Nearby openings or the slab edge inside the search circle can create a bad
+  critical section. Check those before raising the radius.
+- After a beam is added, Concept may still show a punching fail because it
+  does not fully credit beam reinforcement. Office uses a separate final
+  punching check.
+- Coordinate drop caps with the reviewer before locking them in.
+
+Saved-checkpoint inspection cannot tell "SSR not required" from "SSR failed
+before layout." Export Warnings and Errors or a Punching Audit for the exact
+failing checks. See `../AGENTS.md` punching diagnostics.
+
+## Temporary one-way shear
+
+1. Change top and bottom reinforcement to user bars so span-segment calcs stay
+   locked.
+2. Set column-strip width to full width.
+3. Review the shear-bars plan: extent `< d` → stirrups not required; `>= d` →
+   required.
+4. Do not save the Concept model after this temporary setup.
+
+## Report set (office PDF)
+
+Mesh-input, SSR plan, four deflection plans, top bars, bottom bars, shear
+bars, punching, beam/drop-cap notes, SSR count, comparison-spreadsheet image
+on page 1. Reconcile if a meeting asked for a different deflection-plan count.

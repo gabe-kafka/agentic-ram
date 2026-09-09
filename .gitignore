@@ -1,8 +1,11 @@
 # Local RAM models and generated files
-models/ram/*
-!models/ram/.gitkeep
-out/*
-!out/.gitkeep
+ram-structural-system/models/ram/*
+!ram-structural-system/models/ram/.gitkeep
+ram-structural-system/out/*
+!ram-structural-system/out/.gitkeep
+ram-concept/models/
+ram-concept/out/
+ram-concept/references/source-transcripts/
 
 *.ram
 *.rss

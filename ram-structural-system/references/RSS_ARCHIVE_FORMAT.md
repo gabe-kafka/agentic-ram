@@ -272,14 +272,14 @@ and nearby `.w3d` support geometry.
 Run:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\inspect-ram-rss.ps1 `
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ram-structural-system\scripts\inspect-ram-rss.ps1 `
   -Source "MODEL.rss" -ListLoads
 ```
 
 To correlate Data Check findings:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\inspect-ram-rss.ps1 `
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ram-structural-system\scripts\inspect-ram-rss.ps1 `
   -Source "MODEL.rss" -DataCheck "Data Check.prnx"
 ```
 
