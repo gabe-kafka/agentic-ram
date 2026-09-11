@@ -87,10 +87,14 @@ the matching `eng-agent` project's `ram-structural-system/` folder.
 - Read `references/RAM_CONCRETE_NOTES.md` before guiding wall or column
   design.
 - Frame analysis groups are not Concrete wall design groups.
+- Yellow Concept-force status: Calc All alone does not clear it. First design
+  pass may proceed on yellow; re-import later for green.
+- Combinations need a real code + SDS; Code = None greys Generate. Design All
+  for columns stays grey until combos exist.
 - Start walls at `#5@12` (two curtains at 10 in. and thicker). Do not enable
   mixed bar-size ranges unless the project needs them.
-- Column slenderness that is red with utilization under 1.0 is usually moment
-  magnification. Raising As does not fix it.
+- Column fails: axial/interaction strength → bars or local size; magnification
+  red with util < 1.0 → enlarge section / `f'c`, do not raise As.
 
 ## RAM API lessons
 

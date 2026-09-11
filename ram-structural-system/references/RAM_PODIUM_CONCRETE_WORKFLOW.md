@@ -9,8 +9,10 @@ asks. Keep job kips, stories, soil values, and model paths in the matching
 spreadsheet ELF (project)
   -> Modeler: concrete walls Lateral; spreads under columns; mats under walls
   -> Frame: user-defined EQX / EQY story forces
-  -> Concrete: Concept forces green -> Analyze -> walls -> columns
-  -> Foundations: column spreads in RAM Foundation; wall mats later in Concept
+  -> Concrete: Concept forces (yellow OK first pass) -> Analyze -> combos
+     -> wall groups / cuts / bars -> walls -> columns
+  -> Foundations: confirm/add column spreads -> RAM Foundation design
+  -> Wall mats / lateral foundations later (often next week)
 ```
 
 ## Notes to read
