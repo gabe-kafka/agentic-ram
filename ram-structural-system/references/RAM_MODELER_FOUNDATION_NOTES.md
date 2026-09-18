@@ -48,5 +48,8 @@ Do not draw one mat around the entire building perimeter just to save tracing.
 ## After Frame and Concrete
 
 Column spreads are designed in RAM Foundation from Concrete forces. Wall mats
-are designed in RAM Concept on a separate foundation level. See
-`../skills/concrete-footing-design-ram/SKILL.md` for the spread-footing gates.
+are designed in RAM Concept on a separate foundation level. For the Concept
+redraw / soil-bearing workflow, see
+`../../ram-concept/references/RAM_CONCEPT_GUI_NOTES.md` (Mat / lateral
+foundation design) and the project meeting note in `eng-agent`.
+See `../skills/concrete-footing-design-ram/SKILL.md` for the spread-footing gates.

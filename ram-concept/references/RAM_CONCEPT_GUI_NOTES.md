@@ -45,6 +45,33 @@ Separate slab-property regions at terraces, balconies, and step-downs. Put
 reinforcement in matching regions so cover follows the correct elevation.
 Confirm generated stud rails do not run through a modeled step.
 
+## Mat / lateral foundation design (office path)
+
+RAM Foundation is weak for wall foundations. Design lateral/wall mats in
+Concept on a separate mat level imported from Modeler mats.
+
+1. Modeler: crude mats under walls/columns that belong in the Concept design.
+2. Concept import (lowest level, mat type): slab/mat areas, columns above,
+   walls above, direct transfer lateral loads, and usually RSS cracked
+   factors. Reimport column/wall geometry only if Modeler changed after the
+   last Concept import.
+3. `Criteria > Loadings`: delete seismic **overstrength** cases before design;
+   they inflate footings. Keep wind + standard EQ.
+4. Delete the Modeler mat outlines in Mesh Input. Redraw:
+   - walls → beams as strip footings (start ~SF 3.0; Mesh as slab off)
+   - columns / hot corners → Drop Cap under Slab Area (start ~F 6.0)
+5. Place an area spring under the whole foundation (soil). Subgrade modulus
+   from the geo report; set small R/S side constants so the mat does not
+   slide. Hide the spring after placing.
+6. Rule Set Designs → Soil Bearing Design → Max Soil Bearing Pressure plan.
+   Use a finer mesh (~2 ft). Size until bearing is at/under the project
+   allowable; tiny corner red chips may be OK, large over-bearing zones are
+   not.
+7. Export Mesh Input drawing for docs, or screenshot-markup the foundation
+   plan.
+
+Keep job soil values, SF/F schedule names, and model paths in `eng-agent`.
+
 ## Live API
 
 A Start-menu or RAM Manager Concept window has no API. Attach only after
