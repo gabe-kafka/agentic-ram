@@ -16,3 +16,6 @@ ram-concept/references/source-transcripts/
 # Python runtime artifacts
 __pycache__/
 *.py[cod]
+
+# Personal Claude Code settings
+.claude/settings.local.json
