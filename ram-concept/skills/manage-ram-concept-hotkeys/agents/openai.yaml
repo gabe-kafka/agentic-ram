@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAM Concept Hotkeys"
+  short_description: "Manage RAM Concept-only Windows hotkeys"
+  default_prompt: "Use $manage-ram-concept-hotkeys to install or troubleshoot RAM Concept hotkeys, including Esc returning to Selection."

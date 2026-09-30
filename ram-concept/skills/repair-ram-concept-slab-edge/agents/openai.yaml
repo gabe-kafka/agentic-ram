@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAM Concept Slab-Edge Repair"
+  short_description: "Repair slab edges beyond exterior wall faces"
+  default_prompt: "Use $repair-ram-concept-slab-edge to create and validate a separate RAM Concept slab-edge repair proof model."

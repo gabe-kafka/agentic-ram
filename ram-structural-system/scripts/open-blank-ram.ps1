@@ -140,7 +140,9 @@ function Resolve-BlankRamModelPath {
     }
 
     $outputDirectoryValue = if ([string]::IsNullOrWhiteSpace($RequestedOutputDirectory)) {
-        Join-Path -Path (Get-Location) -ChildPath "out\ram-blank"
+        [System.IO.Path]::GetFullPath(
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\out\ram-blank")
+        )
     }
     else {
         $RequestedOutputDirectory

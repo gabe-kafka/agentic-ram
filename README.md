@@ -1,44 +1,40 @@
 # Agentic RAM
 
-Local tools for Bentley RAM Structural System 2025.
+A product-separated workspace for Bentley RAM knowledge, GUI workflows, and
+automation. An agent should be able to guide hand work from the notes here
+even when no script exists.
 
-## What works
+## Repository structure
 
-- Create and launch a blank RAM `.rss` model.
-- Open an existing `.rss` model in RAM Manager.
-- Confirm the safe RAM DataAccess COM hook and print the loaded working model path.
-- Move a validated complete steel gravity-column block into an earlier empty layout without overwriting the source RSS.
-- Move a validated complete wall block into an earlier empty layout without overwriting the source RSS.
-
-## Included skills
-
-- **Wall Integration Skill** (`skills/merge-ram-layout-walls`) packages the proven wall-layout reassignment workflow.
-- **Column Integration Skill** (`skills/merge-ram-layout-columns`) packages the guarded column-layout migration workflow.
-
-Both skills validate RAM's floor metadata before editing and always create a separate output model.
-
-## Quick start
-
-Open an existing model:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\open-ram-model.ps1 -ModelPath ".\models\ram\your-model.rss"
+```text
+agentic-ram/
+|-- .agents/skills/         Codex discovery shims for repository skills
+|-- ram-structural-system/  Generic RSS tooling, skills, references, and tests
+|-- ram-concept/            Generic Concept workflows, skills, and tests
+|-- shared/                 Product-neutral contracts and utilities only
+|-- AGENTS.md               Repository routing rules
+`-- README.md
 ```
 
-Check the live API hook:
+## Product boundaries
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-ram-api-hook.ps1 -AsJson
+- **RAM Structural System:** RAM Manager, RAM Modeler, RAM Frame, RAM Concrete,
+  RAM Foundation, RSS archives, Story Data, layouts, members, gravity loads,
+  Data Check, and RAM DataAccess.
+- **RAM Concept:** Concept model setup, meshing, loading, criteria, analysis,
+  design, result review, tutorial capture, and future Concept automation.
+- **Shared:** only genuinely product-neutral utilities or explicit interchange
+  contracts.
+
+See `ram-structural-system/README.md` for proven RSS tools and GUI notes, and
+`ram-concept/README.md` for Concept workflows.
+
+## Project context
+
+Job-specific context lives in the separate `eng-agent` repository. Project
+2636 is located at:
+
+```text
+C:\Users\GabrielKafka-Gibbons\Documents\eng-agent\projects\
+2636-mt-pleasant-building-2
 ```
-
-Create and open a blank model:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\open-blank-ram.ps1 -AsJson
-```
-
-## Safety boundary
-
-The reliable API surface is intentionally narrow. Use `RAMDataAccess.RamDataAccess1`, database interface enum `10`, and the calls documented in `references/RAM_API_NOTES.md`. Do not use broad COM discovery against a live model.
-
-Do not probe RAM's live `IModel` dynamically from PowerShell. The archive-based merge tools intentionally support only validated contiguous element blocks and refuse broader cases.
