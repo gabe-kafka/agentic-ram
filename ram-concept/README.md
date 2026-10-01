@@ -48,6 +48,12 @@ The controlled 2636_02 result and its assumptions are recorded in
 
 - `skills\run-ram-concept-mesh-calc\` drives Generate Mesh and Calc All in the
   open window and answers the warning dialogs.
+- `skills\set-ram-concept-beam-strips\` sets design spans along concrete beams
+  to the T or L beam strip setup through the GUI and checks the saved file.
+- `skills\simplify-ram-concept-bottom-rebar\` is the bottom-bar workflow on
+  top of the engine below (longitude then latitude, engineer picks the row).
+- `skills\simplify-ram-concept-top-rebar\` puts one count-based group over
+  each column per direction from one or two typical callouts.
 - `skills\simplify-ram-concept-rebar\` replaces program rebar with a few user
   bar groups per layer on an API copy, showing groups vs tonnage options.
 

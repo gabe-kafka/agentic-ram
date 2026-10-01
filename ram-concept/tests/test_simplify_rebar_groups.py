@@ -64,6 +64,14 @@ class RebarGroupTests(unittest.TestCase):
         picked = rg.pick(plans, target_groups=5, max_tons=tons[-1])
         self.assertLessEqual(picked["tons"], tons[-1])
 
+    def test_knee_stops_before_tonnage_jumps(self) -> None:
+        table = lambda rows: [dict(groups=g, tons=t) for g, t in rows]
+        bottom = table([(85, 12.5), (59, 13.0), (48, 13.8), (38, 15.0), (33, 16.8), (25, 21.7)])
+        top = table([(113, 21.7), (94, 22.1), (83, 22.9), (70, 25.1), (54, 30.7), (47, 35.1), (36, 49.7)])
+        self.assertEqual(rg.knee(bottom)["groups"], 33)
+        self.assertEqual(rg.knee(top)["groups"], 54)
+        self.assertEqual(rg.knee(top, max_tons_per_group=0.1)["groups"], 83)
+
     def test_absorb_grows_cheapest_host_with_development(self) -> None:
         host = rg.seed([demand(0, 20, 0, 16, 14)], self.s)[0]   # 18 in
         far = rg.seed([demand(100, 120, 0, 16, 14)], self.s)[0]
@@ -79,6 +87,21 @@ class RebarGroupTests(unittest.TestCase):
         host = rg.seed([demand(0, 20, 0, 16, 14)], self.s)[0]
         _, unplaced = rg.absorb([host], [demand(60, 64, 50, 60, 3)], self.s)
         self.assertEqual(len(unplaced), 1)
+
+    def test_peak_beside_group_stretches_it_without_tightening(self) -> None:
+        host = rg.seed([demand(0, 20, 0, 16, 13)], self.s)[0]   # 18 in
+        peak = demand(20.5, 24, 6, 11, 1)
+        groups, left = rg.absorb_peaks([host], [peak], self.s)
+        self.assertEqual(left, [])
+        self.assertEqual((groups[0].a0, groups[0].a1), (0, 24))
+        self.assertEqual(groups[0].spacing(self.s), 18)
+
+    def test_peak_inside_or_far_from_groups_is_left_listed(self) -> None:
+        host = rg.seed([demand(0, 20, 0, 16, 14)], self.s)[0]
+        inside, far = demand(5, 9, 4, 9, 1), demand(60, 64, 4, 9, 1)
+        groups, left = rg.absorb_peaks([host], [inside, far], self.s)
+        self.assertEqual(groups, [host])
+        self.assertEqual([d.tag for d in left], ["inside a group", "no group within 5 ft"])
 
     def test_callout_counts_bars_across_zone(self) -> None:
         g = rg.Group(0, 10, 0, 16, step=1)                   # 12 in over 10 ft

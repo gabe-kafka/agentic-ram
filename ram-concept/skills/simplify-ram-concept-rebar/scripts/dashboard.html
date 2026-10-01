@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rebar simplify status</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --dim:#667080; --line:#dfe3e8;
+          --ok:#1a7f4b; --run:#b26a00; --bad:#b3261e; --pick:#fff4d6; --bar:#e9ecf0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171b; --card:#1d2126; --ink:#e8eaed; --dim:#98a2b3; --line:#30363d;
+            --ok:#4cc38a; --run:#f0b35a; --bad:#f2857d; --pick:#3a3320; --bar:#2a2f36; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--ink);
+         font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .dim { color:var(--dim); }
+  .ok { color:var(--ok); } .run { color:var(--run); } .bad { color:var(--bad); } .idle { color:var(--dim); }
+  #big { text-align:center; padding:14vh 0 5vh; }
+  #word { font-size:clamp(34px, 9vw, 84px); font-weight:700; line-height:1.1; }
+  #what { font-size:18px; color:var(--dim); margin-top:12px; min-height:1.5em; }
+  #more { max-width:1100px; margin:0 auto; }
+  #more > summary { text-align:center; cursor:pointer; color:var(--dim); font-size:13px; margin-bottom:12px; }
+  .pill { display:inline-block; padding:1px 9px; border-radius:10px; border:1px solid currentColor;
+          font-size:12px; font-weight:600; white-space:nowrap; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .card h2 { font-size:15px; margin:0 0 2px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .nums { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:8px 0 0; }
+  .nums div { background:var(--bar); border-radius:6px; padding:6px 8px; }
+  .nums b { display:block; font-size:18px; }
+  .nums small { color:var(--dim); }
+</style>
+</head>
+<body>
+<div id="big"><div id="word" class="idle">&hellip;</div><div id="what"></div></div>
+<details id="more">
+  <summary>details</summary>
+  <div id="grid" class="grid"></div>
+</details>
+<script>
+const TITLES = {"bot-long":"Bottom longitude","bot-lat":"Bottom latitude","top-long":"Top longitude","top-lat":"Top latitude"};
+const TONE = {"done":"ok","calculating":"run","real leftovers":"bad"};
+const clock = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+function card(l) {
+  const c = el("div", "card"), h = el("h2");
+  h.append(el("span", "", TITLES[l.layer]), el("span", "pill " + (TONE[l.state] || "idle"), l.state));
+  c.append(h);
+  if (l.error) c.append(el("div", "bad", l.error));
+  if (l.plan) {
+    const n = el("div", "nums");
+    const box = (big, small) => { const d = el("div"); d.append(el("b", "", big), el("small", "", small)); n.append(d); };
+    box(l.plan.groups, "user groups"); box(l.plan.tons, "tons");
+    if (l.round) box(l.round.real + " / " + l.round.peaking, "left: real / peaking");
+    c.append(n);
+  }
+  return c;
+}
+
+async function tick() {
+  const word = document.getElementById("word"), what = document.getElementById("what");
+  try {
+    const s = await (await fetch("/status")).json();
+    if (s.state === "working") {
+      word.textContent = "Working"; word.className = "run";
+      what.textContent = s.busy.text + " · " + clock(s.now - s.busy.t);
+    } else {
+      word.textContent = "Ready for human review"; word.className = "ok";
+      what.textContent = s.last ? "last: " + s.last.text : "";
+    }
+    document.title = s.state === "working" ? "Working…" : "Ready for review";
+    document.getElementById("grid").replaceChildren(...s.layers.map(card));
+  } catch (e) {
+    word.textContent = "Status page offline"; word.className = "bad"; what.textContent = "";
+  }
+}
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>

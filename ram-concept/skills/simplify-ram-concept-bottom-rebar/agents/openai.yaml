@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify Bottom Rebar (RAM Concept)"
+  short_description: "Convert program bottom bars to few user groups"
+  default_prompt: "Use $simplify-ram-concept-bottom-rebar to replace program bottom bars in both directions with a few user bar groups and show the groups-vs-tonnage options."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Beam Design Strips (RAM Concept)"
+  short_description: "T or L beam strip setup for spans along beams"
+  default_prompt: "Use $set-ram-concept-beam-strips to set the design spans along concrete beams to the T or L beam strip setup and prove it from the saved file."

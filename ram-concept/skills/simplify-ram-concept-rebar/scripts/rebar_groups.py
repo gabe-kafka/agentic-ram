@@ -29,6 +29,7 @@ class Settings:
     peak_bars: int = 2                    # demand this small ...
     peak_length: float = 5.0              # ... and this short is "peaking"
     reach: float = 3.0                    # ft a group may grow to absorb a leftover
+    peak_reach: float = 5.0               # ft a group may stretch to cover a peaking bar
     development: float = 2.0              # ft extra length past an absorbed leftover
 
 
@@ -153,6 +154,19 @@ def pick(plans: list[dict], target_groups: int, max_tons: float) -> dict:
     return min(within, key=lambda p: (abs(p["groups"] - target_groups), p["tons"]))
 
 
+def knee(plans: list[dict], max_tons_per_group: float = 0.5) -> dict:
+    """Fewest groups reachable while each step costs at most this many tons per group removed."""
+    best = plans[0]
+    for prev, cur in zip(plans, plans[1:]):
+        removed = prev["groups"] - cur["groups"]
+        if removed <= 0:
+            continue
+        if (cur["tons"] - prev["tons"]) / removed > max_tons_per_group:
+            break
+        best = cur
+    return best
+
+
 def absorb(groups: list[Group], leftovers: list[Demand], s: Settings) -> tuple[list[Group], list[Demand]]:
     """Grow or tighten the cheapest nearby group for each leftover; return groups and unplaced leftovers."""
     unplaced = []
@@ -176,6 +190,39 @@ def absorb(groups: list[Group], leftovers: list[Demand], s: Settings) -> tuple[l
         _, g, grown = best
         groups[groups.index(g)] = grown
     return groups, unplaced
+
+
+def _covers(g: Group, d: Demand, tol: float = 0.1) -> bool:
+    return d.a0 >= g.a0 - tol and d.a1 <= g.a1 + tol and d.b0 >= g.b0 - tol and d.b1 <= g.b1 + tol
+
+
+def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple[list[Group], list[Demand]]:
+    """Stretch the cheapest adjacent group over each peaking bar; never tighten or add a group for a peak."""
+    left = []
+    for d in peaks:
+        if any(_covers(g, d) for g in groups):
+            d.tag = f"{d.tag} inside a group".strip()
+            left.append(d)
+            continue
+        best = None
+        for g in groups:
+            ga, gb = _gaps(g, d)
+            if ga > s.peak_reach or gb > s.peak_reach:
+                continue
+            grown = _tidy(Group(min(g.a0, d.a0), max(g.a1, d.a1),
+                                min(g.b0, d.b0 - s.development), max(g.b1, d.b1 + s.development),
+                                max(g.step, step_for(d.density(), s)), g.members, g.notes))
+            if grown.b1 - grown.b0 > s.max_length:
+                continue
+            extra = grown.pounds(s) - g.pounds(s)
+            if best is None or extra < best[0]:
+                best = (extra, g, grown)
+        if best is None:
+            d.tag = f"{d.tag} no group within {s.peak_reach:g} ft".strip()
+            left.append(d)
+            continue
+        groups[groups.index(best[1])] = best[2]
+    return groups, left
 
 
 def from_dict(d: dict) -> Group:

@@ -9,6 +9,12 @@ Turn Concept's program bars into the fewest sensible user bar groups, then
 calc until the program adds nothing real. One layer per run:
 `bot-long`, `bot-lat`, `top-long`, `top-lat`.
 
+This is the shared engine. For bottom bars follow
+`../simplify-ram-concept-bottom-rebar`. For top bars follow
+`../simplify-ram-concept-top-rebar`, which keeps one count-based group per
+column; the band grouping here works on top layers but does not match how
+top bars are detailed.
+
 ```text
 copy model -> API session -> baseline (no user bars, calc)
   -> options table (groups vs tons) -> engineer picks
@@ -54,9 +60,23 @@ python simplify_rebar.py options  --layer bot-long --work <dir> --target-groups 
 python simplify_rebar.py run      --layer bot-long --work <dir> --rounds 4
 ```
 
-`options --option N` picks a table row directly. `apply`, `verify` and
-`absorb` run single steps. Each calc takes about 2 minutes; Calc All through
-the API raises no dialogs.
+`options --option N` picks a table row directly; `--pick knee` defaults to
+the row marked `<- knee` (fewest groups before a step costs more than 0.5
+tons per group removed). `baseline --reuse-calc` skips the calc when the layer
+has no user bars and the model was just calculated. `--absorb-peaks` (on
+`absorb` and `run`) also stretches the nearest group over peaking bars.
+`apply`, `verify` and `absorb` run single steps. Each calc takes about 2
+minutes; Calc All through the API raises no dialogs.
+
+`run` applies the newest plan in its work folder. To try another row, use a
+new work folder with a copy of `base.cpt`.
+
+## Status page
+
+`python dashboard.py --root <job>/ram-concept/rebar-simplify --port 8765`
+serves one page that reads the work folders and shows **Working** while a
+command runs and **Ready for human review** otherwise. It never talks to
+Concept. In Claude Code, start the `rebar-dashboard` preview.
 
 `save_file` re-targets the open model, so after `baseline` the API session is
 working on `<dir>/base.cpt`, then `round-N.cpt`. The source copy is not
@@ -82,7 +102,13 @@ written again.
 - **Peaking:** demand of 1-2 bars no longer than 5 ft is listed, not chased
   (`peaks.json`, verify output). Engineer judgment, e.g. a bar inside an
   elevator pit, is usually that it is not needed. Tags flag ones near
-  openings or off the slab.
+  openings or off the slab. With `--absorb-peaks` the cheapest group within
+  5 ft is stretched over each one; spacing is never tightened and no group is
+  added for a peak. Peaks already inside a group, or with no group in reach,
+  stay listed.
+- **Resume the Scripting Server through its button's UI Automation Invoke,**
+  then read back that Pause is enabled. A mouse click on Resume can miss
+  when another window covers it, and the run then fails as "paused".
 - Spacing menu 18/12/9/6/4 in, lengths and extents in whole feet, bar size =
   the layer's dominant program size.
 - Demand above #7 at 4 in (about 1.8 in^2/ft) is an engineering flag, not a
@@ -94,6 +120,7 @@ written again.
 - `plan-N.json`: settings, depth rule, groups
 - `round-N.cpt`: calc after applying `plan-N`
 - `peaks.json`: peaking demand left for review
+- `events.jsonl`, `.working`: step log and busy marker for the status page
 
 ## Guards
 
@@ -102,7 +129,15 @@ written again.
 - Only the chosen layer's user bars are deleted and rewritten.
 - Report real leftovers and peaking bars; do not claim "no program bars"
   unless verify shows none.
-- Getting the result into the RAM-linked model is not automated yet.
+- Getting the result into the RAM model is not automated. Seen to work once
+  on 2636: a copy of the `.rss` (a zip) with its `<model>.cpt<story>E` member
+  replaced by the finished `.cpt` opened cleanly from RAM Manager. While RAM
+  Manager holds a model open, that same file sits in RAM's `Working` folder
+  and an API Concept can open it there once the RAM-launched Concept is
+  closed. Copying a result back over that working file is not proven, and
+  the agent is not permitted to overwrite it; the engineer does that step.
+- Before a swap, diff the old and new `.cpt` table by table. On 2636 this
+  caught an enlarged RAM-linked opening and slab left outside every strip.
 
 ## Validation
 
@@ -117,3 +152,4 @@ in the plan views (`Top Long`, `Top Lat`, `Bot Long`, `Bot Lat`; see
 - `scripts/rebar_groups.py`: grouping, options, peaking, absorb (pure, tested).
 - `scripts/cpt_reader.py`: read-only `.cpt` reader: bars, mesh thickness,
   openings, depth rule.
+- `scripts/dashboard.py`, `scripts/dashboard.html`: read-only status page.

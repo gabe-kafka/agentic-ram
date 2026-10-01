@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify Top Rebar (RAM Concept)"
+  short_description: "Typical count-based top bars over each column"
+  default_prompt: "Use $simplify-ram-concept-top-rebar to replace program top bars over columns with one count-based group per column per direction and show the typical-callout options."
