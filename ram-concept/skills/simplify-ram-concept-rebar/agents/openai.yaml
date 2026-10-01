@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify RAM Concept Rebar"
+  short_description: "Convert program rebar to few user bar groups"
+  default_prompt: "Use $simplify-ram-concept-rebar to replace program rebar on one layer with a few user bar groups and show the groups-vs-tonnage options."

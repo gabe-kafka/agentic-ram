@@ -39,7 +39,11 @@ localhost API only.
   the process was started with `-apiServer` or `-apiServerWithGui`.
 - Wrap the already-open model. Do not call `open_file`, `save_file`,
   `close_model`, `shut_down`, mesh, calc, or unit resets on an attached
-  session.
+  session, except on a separately named API copy started for
+  `skills/simplify-ram-concept-rebar`, which calcs and saves into its job
+  work folder.
+- The Scripting Server's Pause button blocks every API call (timeouts) until
+  Resume is clicked.
 - A Start-menu Concept window has no API. Do not kill it. Ask the user to
   close it, then start `scripts/start-ram-concept-api.cmd`.
 - Design strips and `Consider as Post-Tensioned` are not in the published

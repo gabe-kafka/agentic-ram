@@ -44,6 +44,13 @@ The controlled 2636_02 result and its assumptions are recorded in
 2636-mt-pleasant-building-2\ram-concept\tutorials\
 2636_02_slab_boundary_proof.md`.
 
+## Mesh, calc, and rebar simplification
+
+- `skills\run-ram-concept-mesh-calc\` drives Generate Mesh and Calc All in the
+  open window and answers the warning dialogs.
+- `skills\simplify-ram-concept-rebar\` replaces program rebar with a few user
+  bar groups per layer on an API copy, showing groups vs tonnage options.
+
 ## Live API attach
 
 A normally started RAM Concept GUI does not listen for the API. Probe and

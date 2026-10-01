@@ -33,6 +33,44 @@ Do not remesh merely to inspect the existing mesh
 - To trace imported area-load outlines without reimporting from Modeler:
   `View > Visible Objects > Static Loadings` on Mesh Input
 
+### Rebar review plans (office convention)
+
+Four custom plans under `Layers > Reinforcement`, one per face and direction.
+Name them by face, then direction:
+
+| Plan | Reinforcement layer visible objects |
+|---|---|
+| `Top Long` | Longitude User + Program Concentrated Bars, Top Face |
+| `Top Lat` | Latitude User + Program Concentrated Bars, Top Face |
+| `Bot Long` | Longitude User + Program Concentrated Bars, Bottom Face |
+| `Bot Lat` | Latitude User + Program Concentrated Bars, Bottom Face |
+
+Every plan also shows Concentrated Bar Descriptions and Extents, and on the
+Element layer: walls and columns above/below (outline only), slab elements,
+and slab element edges.
+
+`Layers > New Plan...` (name without "Plan", layer Reinforcement) opens
+`Visible Objects` for the new plan. Click `Show Nothing on Any Layer`, then:
+
+- `Reinf.` tab, concentrated group (left column): Lat/Long Concentrated User
+  and Program Reinf., Top or Bottom Face, Description, Extent. The transverse
+  group below repeats the Description/Extent labels; do not tick those.
+- `Element` tab: Wall Elements Above/Below + their Outline Only, Column
+  Elements Above/Below, Slab Elements + its Outline Only (stored as
+  `SlabElementEdges`).
+
+Check the face filter, not the name. A plan named `Top Long` that filters
+`BottomFaceConcentratedBars` shows bottom bars. Callouts ending in `B` are
+bottom bars. Typical gravity slab: top bars #9 over supports, bottom #7.
+Rename a plan with `Layers > Rename...`; it acts on the active plan window, not
+the tree selection. Double-click the plan in the report tree first, and confirm
+the dialog's `Old name` before typing. Create plans with `Layers > New Plan...`.
+The published API cannot create or rename plans. The report tree is not
+exposed to UI Automation, so automation must click it by screen position.
+Saved checkpoints store each plan's filter in `PlanData` /
+`FilterKeyShowFilter.FilterString`; `ConcentratedRebar.BarFace` is 1 = top,
+2 = bottom.
+
 ## Line loads
 
 The Warnings list uses one-based load numbers. Saved checkpoint indices are
