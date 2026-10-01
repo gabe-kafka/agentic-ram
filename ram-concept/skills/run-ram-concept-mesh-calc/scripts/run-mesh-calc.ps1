@@ -69,6 +69,7 @@ public static class RamConceptMeshCalc
     private const int StableMilliseconds = 700;
     private const int UnreadableLimitSeconds = 30;
     private const int StartLimitSeconds = 15;
+    private const int PressCooldownMilliseconds = 4000;
     private const uint SMTO_ABORTIFHUNG = 0x0002;
     private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
     private const uint MOUSEEVENTF_LEFTUP = 0x0004;
@@ -214,6 +215,7 @@ public static class RamConceptMeshCalc
         Stopwatch quiet = Stopwatch.StartNew();
         Dictionary<IntPtr, Stopwatch> firstSeen = new Dictionary<IntPtr, Stopwatch>();
         Dictionary<IntPtr, Stopwatch> unreadableSince = new Dictionary<IntPtr, Stopwatch>();
+        Dictionary<IntPtr, Stopwatch> pressedAt = new Dictionary<IntPtr, Stopwatch>();
         HashSet<string> reported = new HashSet<string>();
         int pressed = 0;
         bool started = false;
@@ -233,6 +235,12 @@ public static class RamConceptMeshCalc
                     firstSeen[dialog] = Stopwatch.StartNew();
                 if (firstSeen[dialog].ElapsedMilliseconds < StableMilliseconds ||
                     !IsResponsive(dialog))
+                    continue;
+
+                // A busy Concept can leave a pressed dialog on screen briefly;
+                // give it time to close instead of clicking it again.
+                if (pressedAt.ContainsKey(dialog) &&
+                    pressedAt[dialog].ElapsedMilliseconds < PressCooldownMilliseconds)
                     continue;
 
                 DialogInfo info = TryDescribe(dialog);
@@ -278,6 +286,7 @@ public static class RamConceptMeshCalc
                     "   press [{0}] {1} ({2})", info.Accept, info.Summary(), shot));
                 ClickCenter(dialog, info.AcceptRect);
                 firstSeen.Remove(dialog);
+                pressedAt[dialog] = Stopwatch.StartNew();
                 pressed++;
             }
 
