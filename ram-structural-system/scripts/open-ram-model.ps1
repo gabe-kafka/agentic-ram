@@ -23,7 +23,7 @@ if (-not (Test-Path -LiteralPath $RamExePath -PathType Leaf)) {
     throw "RAM Manager executable not found: $RamExePath"
 }
 
-$process = Start-Process -FilePath $RamExePath -ArgumentList @($resolvedModelPath) -PassThru
+$process = Start-Process -FilePath $RamExePath -ArgumentList "`"$resolvedModelPath`"" -PassThru
 if ($WaitSeconds -gt 0) {
     Start-Sleep -Seconds $WaitSeconds
 }
