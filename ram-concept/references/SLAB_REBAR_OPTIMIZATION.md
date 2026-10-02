@@ -28,6 +28,41 @@ Principles, in the engineer's words:
 - **The source model is never written.** Work on an API copy; results reach
   the production model by an archive swap the engineer approves.
 
+## Stack
+
+Four pieces, each with one job. Adopted 2026-10-02.
+
+| Piece | Where | Holds |
+|---|---|---|
+| `agentic-ram` | GitHub, private | The tools and rules. The same for every project. No job files. |
+| `eng-agent` | GitHub, private | One folder per job: meetings, decisions, actions, and the rebar record (`STATUS.md`, `decisions.json`, plans, layout images). No models. |
+| Production folder | Office server (S:) | The RAM model `.rss` and its `Archive`. The authoritative engineering file. |
+| Work PC | Local | RAM Concept and RAM Structural System, and the large working copies of the model. Never in git. |
+
+The two repos stay separate on purpose: the tools may be published one day,
+and `eng-agent` holds client meeting records. Do not move job files into
+`agentic-ram`.
+
+Anything that calculates needs the work PC. From any other machine the
+status, decisions, plans and layout images can be read, and rules or code
+can be changed.
+
+## Starting a new project
+
+1. Make the job folder in `eng-agent/projects/<job>/` and copy
+   `REBAR_STATUS_TEMPLATE.md` (beside this file) to
+   `ram-concept/rebar-simplify/STATUS.md`. Add a `.gitignore` there with
+   `*.cpt`, `*.cpt.*` and `.working`.
+2. With RAM Manager closed, take the Concept file out of the production
+   `.rss` (the member ending `.cpt<story>E`) or have the engineer
+   `File > Save As` a copy, and start an API session on that copy.
+3. Run the pipeline below. The engineer picks the row at each options table
+   and states any overrides.
+4. Review from `bar_plan.py` images or in Concept.
+5. Sync into the production model every 2 hours.
+6. End of every session: update `STATUS.md`, then commit and push both
+   repos.
+
 ## Pipeline
 
 ```text
@@ -233,7 +268,8 @@ permitted.
 
 ## Picking this up elsewhere
 
-1. Clone `agentic-ram`, check out the working branch, read `AGENTS.md`,
+1. Clone `agentic-ram` and `eng-agent` (both private under the same GitHub
+   account), check out the working branches, read `AGENTS.md`,
    `ram-concept/AGENTS.md`, then this file.
 2. `python -m unittest discover -s ram-concept/tests` (one known failure,
    item 8 above). `bar_plan.py` needs matplotlib; the PDF stitcher needs
