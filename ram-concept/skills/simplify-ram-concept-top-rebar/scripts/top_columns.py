@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import itertools
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 BAR_WEIGHT = {"#3": 0.376, "#4": 0.668, "#5": 1.043, "#6": 1.502, "#7": 2.044,
               "#8": 2.670, "#9": 3.400, "#10": 4.303, "#11": 5.313}   # lb/ft
@@ -87,6 +87,47 @@ def assign(demands, columns, reach: float = 2.0):
     return sorted(found.values(), key=lambda c: c.column), loose
 
 
+def capture(groups: list[ColumnGroup], strays, reach: float = 5.0):
+    """Fold the program bars left beside a column group into that group.
+
+    A stray belongs to a group only when it sits in that group's own strip:
+    at least half its width inside the group's extent. Alongside the group
+    (half its length or more) its bars add to the count; past the end of the
+    group, within ``reach`` feet, the group is lengthened to reach it.
+
+    The extent is never widened. A bar beside the extent is the next strip's
+    bar; spreading the column bars out to it thins them where they are needed
+    and the program asks for more every round (2636: 15#9 grew to 25#9).
+
+    Returns the groups, the columns that changed, the columns that were
+    lengthened, and the strays no group could take. Pass the changed groups
+    back through ``typed`` so a typical group that now needs more moves up to
+    the next typical count.
+    """
+    out = [replace(g) for g in groups]
+    changed, longer, left = set(), set(), []
+    for d in strays:
+        best = None
+        for g in out:
+            inside = min(g.a1, d.a1) - max(g.a0, d.a0)
+            along = max(g.b0 - d.b1, d.b0 - g.b1, 0.0)
+            if (g.size == d.size and inside >= 0.5 * (d.a1 - d.a0) and along <= reach
+                    and (best is None or along < best[0])):
+                best = (along, g)
+        if best is None:
+            left.append(d)
+            continue
+        g = best[1]
+        if min(g.b1, d.b1) - max(g.b0, d.b0) >= 0.5 * d.length:
+            g.count += d.count
+        else:
+            g.b0, g.b1 = min(g.b0, d.b0), max(g.b1, d.b1)
+            longer.add(g.column)
+        g.length = round(g.b1 - g.b0, 2)
+        changed.add(g.column)
+    return out, changed, longer, left
+
+
 def _feet(length: float) -> int:
     """Whole feet, rounding up; an inch or so over does not earn another foot."""
     return math.ceil(length - 0.1)
@@ -115,17 +156,18 @@ def type_options(bars: list[ColumnBars], most: int = 4) -> list[dict]:
 
 
 def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b: True,
-          beam_ends: frozenset = frozenset()) -> list[ColumnGroup]:
+          beam_ends: frozenset = frozenset(), own: frozenset = frozenset()) -> list[ColumnGroup]:
     """One group per column: the smallest typical count that covers it, else its own count.
 
     A typical callout's length is the longest demand among its columns. Bars
     stay centred on the program bars; where that would run off the slab the
     bar keeps the program bar's end on that side. Columns in ``beam_ends``
     keep their own count and length (kind "beam end") and do not stretch the
-    typical callouts.
+    typical callouts; neither do columns in ``own`` (kind "own").
     """
     typical = tuple(sorted(typical))
-    kind_of = lambda c: None if c.column in beam_ends else next((t for t in typical if c.count <= t), None)
+    apart = beam_ends | own
+    kind_of = lambda c: None if c.column in apart else next((t for t in typical if c.count <= t), None)
     lengths = {t: max((_feet(c.length) for c in bars if kind_of(c) == t), default=0) for t in typical}
     groups = []
     for c in bars:

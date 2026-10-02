@@ -109,12 +109,44 @@ python simplify_top_rebar.py run-bands    --work <dir>
 - `band-options` prints the bands-vs-tons table per direction with the knee
   row marked; the engineer picks. `bands` without `--option` takes the knee.
 - Write spaced bars as `#7 @12"`.
-- `run-bands` applies, calcs and grows the bands over leftovers until
-  nothing real is left away from columns. Absorbing adds steel; say so.
+- `run-bands` applies, calcs and captures what the program still adds,
+  until nothing changes (3 rounds at most). Capturing adds steel; say so.
 - `--verdicts` waives bars that sit only on a mat-boundary notch.
 - 2636: the engineer went one row past the knee for fewer bands. Longitude
-  20 bands, 8.3 tons; latitude 18 bands, 7.5 tons after absorbing (program
+  20 bands, 8.3 tons; latitude 17 bands, 7.5 tons after absorbing (program
   only: 1.8 and 1.6 tons).
+
+### Capturing leftovers
+
+The engineer's rule: a stray program bar beside a user group is captured by
+that group wherever it can be. `run-bands` does this each round, column
+groups first, then bands.
+
+- A leftover over a column goes to that column's group: alongside the group
+  its bars add to the count (`4#9 x 10'` becomes `5#9 x 10'`); past the end
+  of the group, within 5 ft, the group is lengthened and keeps its own
+  callout. A typical group that now needs more moves to the next typical
+  count (`10#9` to `15#9`).
+- A column with a leftover and no group gets its own group by the usual
+  typical rule.
+- A peaking bar away from the columns goes to a column group only when at
+  least half its width is inside that group's extent; otherwise the nearest
+  band within 5 ft is stretched over it.
+- **A column group's extent is never widened.** A bar beside the extent is
+  the next strip's bar. Widening thins the column bars and the program asks
+  for more every round; on 2636 one column ran from 15#9 to 25#9.
+- Still listed, not captured: bars just outside a column group's extent and
+  bars inside a band. The zone rule in
+  `../../references/SLAB_REBAR_OPTIMIZATION.md` is the fix and is not built.
+
+### One callout per zone
+
+Two bands stacked in one middle strip is wrong. Until bands are grouped by
+strip, `merge-bands` merges neighbouring bands up to two spacing steps apart
+at the tighter spacing when one merge adds no more than 500 lb
+(`--class-jump`, `--merge-budget`). On 2636 it turned `#7 @12"` and `#7 @6"`
+between two columns into one `#7 @6" x 14'`. A looser budget also merges a
+70 ft band to `@6"` for one more ton; show that cost before doing it.
 
 Flag the heavy columns on their own. Check first whether they sit on a
 beam (see above). Otherwise more than about 15 #9 bars over one column

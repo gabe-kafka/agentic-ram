@@ -12,7 +12,9 @@ Over columns (bars by count):
 Away from columns (bars by spacing, like the bottom layers), once the column groups are in and calculated:
   band-options  groups-vs-tons table for the scattered top bars:  --band-size "#7"
   bands         add the chosen bands to the plan:  --band-size "#7" --option LONG LAT   (default: knee rows)
-  run-bands     apply -> verify -> grow the bands over leftovers, until nothing real is left
+  run-bands     apply -> verify -> capture leftovers into the nearest group, until nothing changes
+  merge-bands   merge neighbouring bands whose spacing is up to --class-jump steps apart (default 2)
+                when one merge adds no more than --merge-budget lb (default 500)
 
   apply    delete user top bars, draw the column groups and any bands
   verify   calc, save round-N.cpt, report what the program still adds
@@ -334,7 +336,7 @@ def report(a, state: dict, path: Path) -> dict:
         short = [c for c in bars if not (c.count <= s.peak_bars and c.length <= s.peak_length)]
         loose, waived = sr.split_waived(loose, sr.load_transitions(state.get("verdicts"), layer))
         real_loose = [d for d in loose if not rg.is_peak(d, s)]
-        left_over[name] = (real_loose, [d for d in loose if rg.is_peak(d, s)])
+        left_over[name] = (real_loose, [d for d in loose if rg.is_peak(d, s)], bars)
         left = len(bars) + len(loose)
         print(f"{name}: {len(groups)} column groups, {tc.tons(groups):.1f} tons; program left: {left} groups "
               f"({len(short)} real over columns, {len(real_loose)} real elsewhere, "
@@ -353,13 +355,67 @@ def report(a, state: dict, path: Path) -> dict:
     return left_over
 
 
-def cmd_absorb_bands(a, left_over: dict) -> bool:
-    """Grow the bands over what the program still adds away from columns; writes the next plan."""
+def capture_columns(a, state: dict, name: str, over_columns: list, peaks: list) -> list:
+    """Fold leftovers into the column group beside them; returns the peaking bars no column group took.
+
+    Anything the program still adds over a column goes to that column's
+    group; a column with no group yet gets one. A peaking bar away from the
+    columns goes to a column group within reach, else it is left for the bands.
+    """
+    base = a.work / "base.cpt"
+    layer = cr.Layer.parse(name)
+    columns = columns_local(base, layer)
+    mesh = cr.Mesh(base)
+    groups = [tc.ColumnGroup(**g) for g in state["layers"][name]]
+    have = {g.column for g in groups}
+    fresh = [c for c in over_columns if c.column not in have]          # a column strip of its own: its own group
+    grown, changed, longer, left = tc.capture(groups, [c for c in over_columns if c.column in have] + list(peaks),
+                                              a.capture_reach)
+    demands = [tc.ColumnBars(g.column, *columns[g.column], g.count, g.a0, g.a1, g.b0, g.b1, g.elevation, g.size)
+               for g in grown] + fresh
+    on_slab = lambda p, q: mesh.thickness(*layer.to_plan(p, q)) is not None
+    retyped = {g.column: g for g in tc.typed(demands, tuple(state["typical"]), on_slab,
+                                             tb.end_columns(base, layer), own=frozenset(longer))}
+    final = [retyped[g.column] if g.column in changed else g for g in groups] + [retyped[c.column] for c in fresh]
+    for old in groups:
+        new = retyped[old.column]
+        if old.column in changed and new.callout() != old.callout():
+            x, y = layer.to_plan(*columns[old.column])
+            print(f"   ({x:.0f},{y:.0f}) {old.callout()} -> {new.callout()}")
+    for c in fresh:
+        x, y = layer.to_plan(*columns[c.column])
+        print(f"   ({x:.0f},{y:.0f}) new group {retyped[c.column].callout()}")
+    state["layers"][name] = [asdict(g) for g in final]
+    print(f"{name}: column groups took {len(over_columns) + len(peaks) - len(left)} leftovers; "
+          f"{len(final)} column groups, {tc.tons(final):.1f} tons")
+    return [d for d in left if not isinstance(d, tc.ColumnBars)]
+
+
+def cmd_merge_bands(a):
+    """One pass: merge neighbouring bands whose spacing is a few steps apart, where it costs little."""
     n, state = load_state(a.work)
-    s = sr.settings_of({"settings": state["band_settings"]})
+    s = sr.settings_of({"settings": dict(state["band_settings"], max_class_jump=a.class_jump)})
     before = json.dumps(state["bands"], sort_keys=True)
     for name in LAYERS:
-        real, peaks = left_over[name]
+        groups = [rg.from_dict(b) for b in state["bands"][name]]
+        merged = rg.merge_until(list(groups), s, a.merge_budget)
+        state["bands"][name] = [asdict(g) for g in merged]
+        print(f"{name}: {len(groups)} -> {len(merged)} bands, {sr.tons_of(groups, s):.1f} -> {sr.tons_of(merged, s):.1f} tons: "
+              f"{band_schedule(state['bands'][name], s)}")
+    if json.dumps(state["bands"], sort_keys=True) == before:
+        print("nothing to merge")
+        return
+    save_state(a.work, n + 1, state, f"plan {n + 1}: bands merged across {a.class_jump} spacing steps")
+
+
+def cmd_absorb_bands(a, left_over: dict) -> bool:
+    """Capture what the program still adds: column groups first, then the bands; writes the next plan."""
+    n, state = load_state(a.work)
+    s = sr.settings_of({"settings": state["band_settings"]})
+    before = json.dumps([state["bands"], state["layers"]], sort_keys=True)
+    for name in LAYERS:
+        real, peaks, over_columns = left_over[name]
+        peaks = capture_columns(a, state, name, over_columns, peaks)
         groups = [rg.from_dict(b) for b in state["bands"][name]]
         groups, unplaced = rg.absorb(groups, real, s)
         groups += rg.seed(unplaced, s)
@@ -368,10 +424,10 @@ def cmd_absorb_bands(a, left_over: dict) -> bool:
         state["bands"][name] = [asdict(g) for g in groups]
         print(f"{name}: absorbed {len(real) - len(unplaced)} real, {len(unplaced)} new, "
               f"{len(peaks) - len(left)} of {len(peaks)} peaking; {len(groups)} bands, {sr.tons_of(groups, s):.1f} tons")
-    if json.dumps(state["bands"], sort_keys=True) == before:
+    if json.dumps([state["bands"], state["layers"]], sort_keys=True) == before:
         print("nothing left to absorb")
         return False
-    save_state(a.work, n + 1, state, f"plan {n + 1}: bands grown over leftovers")
+    save_state(a.work, n + 1, state, f"plan {n + 1}: leftovers captured by the groups beside them")
     return True
 
 
@@ -387,8 +443,8 @@ def cmd_run_bands(a):
     for _ in range(a.rounds):
         cmd_apply(a)
         left_over = cmd_verify(a)
-        if not any(real or peaks for real, peaks in left_over.values()):
-            print("no scattered program bars left; done")
+        if not any(real or peaks or over for real, peaks, over in left_over.values()):
+            print("no program bars left; done")
             return
         if not cmd_absorb_bands(a, left_over):
             return
@@ -398,7 +454,7 @@ def cmd_run_bands(a):
 def main(argv=None):
     commands = {"options": cmd_options, "plan": cmd_plan, "apply": cmd_apply, "verify": cmd_verify, "run": cmd_run,
                 "band-options": cmd_band_options, "bands": cmd_bands, "run-bands": cmd_run_bands,
-                "report": cmd_report}
+                "report": cmd_report, "merge-bands": cmd_merge_bands}
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=list(commands))
     p.add_argument("--work", required=True, type=Path, help="work folder holding base.cpt (no user top bars, calculated)")
@@ -409,6 +465,10 @@ def main(argv=None):
     p.add_argument("--knee-tons-per-group", type=float, default=0.5)
     p.add_argument("--rounds", type=int, default=3)
     p.add_argument("--verdicts", type=Path, help="bands: verdicts.json from transition_check.py; notch-only bars are waived")
+    p.add_argument("--capture-reach", type=float, default=5.0,
+                   help="run-bands: feet a column group reaches to take a leftover bar")
+    p.add_argument("--class-jump", type=int, default=2, help="merge-bands: spacing steps two merged bands may differ by")
+    p.add_argument("--merge-budget", type=float, default=500.0, help="merge-bands: most lb one merge may add")
     p.add_argument("--port", type=int, help="API port (auto-detected when one session runs)")
     a = p.parse_args(argv)
     a.work = a.work.resolve()

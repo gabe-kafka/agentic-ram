@@ -15,6 +15,27 @@ generated SSR geometry is available through `scripts/inspect-punching-checks.py`
 Live GUI attachment uses `skills/attach-ram-concept-api` and the official
 localhost API only.
 
+## Slab reinforcement optimization
+
+For any work on simplifying, grouping or reviewing slab rebar, read
+`references/SLAB_REBAR_OPTIMIZATION.md` first. It is the architecture and
+handoff record: the pipeline, the bar classes and their rules, the
+one-callout-per-zone rule, what is not built yet, and how to pick the work
+up on another machine. Then read the job's
+`eng-agent/projects/<job>/ram-concept/rebar-simplify/STATUS.md`.
+
+Standing rules from the engineer, which apply in every session:
+
+- Fewest bar groups; show the groups-vs-tons table and let the engineer pick.
+- One callout per zone at most (column strip or middle strip, over the
+  column line or at midspan).
+- Capture stray single program bars into the user group beside them.
+- Callouts as `15#7 x 26'` (by count) and `#7 @12"` (by spacing).
+- The agent may Pause and Resume the Scripting Server without asking, and
+  leaves it paused when handing back for review.
+- Save and sync into the production RAM model every 2 hours of Concept work;
+  say at every report where the results live.
+
 ## Hand-guide GUI lessons
 
 - Read `references/RAM_CONCEPT_GUI_NOTES.md` before walking a live Concept
