@@ -26,6 +26,8 @@ import simplify_rebar as sr
 LAYERS = ["bot-long", "bot-lat", "top-long", "top-lat"]
 PAGE = Path(__file__).with_name("dashboard.html")
 _cache: dict = {}
+TURN_FILE: Path | None = None
+_last_run = 0.0
 
 
 def cached(key, path: Path, build):
@@ -154,10 +156,33 @@ def status(root: Path) -> dict:
             layers.append(layer_status(name, newest.get(name), running))
         except Exception as error:           # a file mid-save; show it and retry on the next poll
             layers.append(dict(layer=name, folder=newest[name].name, state="reading", error=str(error)[:200], events=[]))
-    busy = working(root)
+    busy = working(root) or turn_busy(time.time(), working(root))
     recent = max((e for l in layers for e in l["events"]), key=lambda e: e["t"], default=None)
     return dict(now=time.time(), root=str(root), concept_running=running, layers=layers,
                 state="working" if busy else "ready", busy=busy, last=recent)
+
+
+def turn_busy(now: float, run: dict | None) -> dict | None:
+    """Whose turn it is, from the file the Claude Code hooks write.
+
+    Green means the human must act, so it is working whenever the human has
+    handed over and Claude has not stopped since, and also while Claude still
+    has to write up a run that finished after its last stop.
+    """
+    global _last_run
+    if run:
+        _last_run = now
+    if TURN_FILE is None or not TURN_FILE.exists():
+        return None
+    try:
+        turn = json.loads(TURN_FILE.read_text())
+    except (ValueError, OSError):
+        return None
+    if turn.get("state") == "working":
+        return dict(text="Claude is working", t=turn["t"])
+    if turn["t"] < _last_run and now - _last_run < 300:
+        return dict(text="writing up the result", t=_last_run)
+    return None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -183,7 +208,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", required=True, type=Path, help="folder holding the per-layer work folders")
     p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--turn-file", type=Path,
+                   help="turn.json written by the Claude Code hooks; without it only running commands count as working")
     a = p.parse_args()
+    global TURN_FILE
+    TURN_FILE = a.turn_file
     Handler.root = a.root.resolve()
     print(f"rebar dashboard on http://localhost:{a.port}  root={Handler.root}", flush=True)
     ThreadingHTTPServer(("127.0.0.1", a.port), Handler).serve_forever()

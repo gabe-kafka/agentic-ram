@@ -12,6 +12,7 @@ model there, so the original file is never written.
   apply     write a plan's groups as user bars
   verify    calc, save round-N.cpt, report leftovers (real vs peaking)
   absorb    grow/tighten groups to cover real leftovers; writes the next plan
+            (beam bars grow by count over mid-span leftovers inside a beam)
   run       apply -> verify -> absorb until no real leftovers (or max rounds)
 
   --absorb-peaks also stretches the nearest group over peaking bars (absorb, run).
@@ -33,6 +34,10 @@ import cpt_reader as cr
 import rebar_groups as rg
 
 SKILLS = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SKILLS / "clean-up-ram-concept-t-beams" / "scripts"))
+
+import beam_rules as br          # noqa: E402
+
 VENDOR = SKILLS / "attach-ram-concept-api" / "scripts" / "api_vendor"
 INSTALL = Path(r"C:\Program Files\Bentley\Engineering\RAM Concept")
 
@@ -136,6 +141,47 @@ def tons_of(groups, s) -> float:
     return sum(g.pounds(s) for g in groups) / 2000.0
 
 
+def split_beam(demands, beams: list):
+    """Set aside bars that sit inside a beam: (slab bars, beam bars)."""
+    beam = [d for d in demands if br.in_beam(d, beams)]
+    return [d for d in demands if d not in beam], beam
+
+
+def beam_callouts(groups: list[dict], layer: cr.Layer) -> str:
+    out = []
+    for g in groups:
+        x0, y0 = layer.to_plan(g["a0"], g["b0"])
+        x1, y1 = layer.to_plan(g["a1"], g["b1"])
+        out.append(f"{g['count']}{g['size']} x {g['b1'] - g['b0']:g}' in the beam at ({(x0 + x1) / 2:.0f},{(y0 + y1) / 2:.0f})")
+    return "; ".join(out)
+
+
+def load_transitions(path, layer: cr.Layer) -> dict:
+    """Mat-boundary crossings for this layer from transition_check.py, as local (a, b) points by verdict."""
+    marks = {"notch only": [], "real": []}
+    if not path:
+        return marks
+    direction = "longitude" if layer.direction == "long" else "latitude"
+    for f in json.loads(Path(path).read_text()):
+        if f["face"] == layer.face and f["direction"] == direction and f["verdict"] in marks and f["demand"] >= 5:
+            marks[f["verdict"]].append(layer.to_local(f["x"], f["y"]))
+    return marks
+
+
+def over(d, marks: list, across: float = 1.0, along: float = 0.5) -> bool:
+    return any(d.a0 - across <= a <= d.a1 + across and d.b0 - along <= b <= d.b1 + along for a, b in marks)
+
+
+def split_waived(demands, marks: dict):
+    """Set aside program bars that exist only because the mat capacity notches at a mat boundary.
+
+    A bar is waived when it sits on a "notch only" crossing and on no "real"
+    one: the mat either side carries the demand, so the bar is not required.
+    """
+    waived = [d for d in demands if over(d, marks["notch only"]) and not over(d, marks["real"])]
+    return [d for d in demands if d not in waived], waived
+
+
 # ---------------------------------------------------------------- commands
 
 def cmd_baseline(a):
@@ -165,11 +211,19 @@ def cmd_options(a):
     mesh = cr.Mesh(base)
     demands = cr.bars(base, layer, cr.PROGRAM)
     s = rg.Settings(size=cr.dominant_size(demands))
-    real, peaks = split_peaks(demands, s, mesh, layer)
+    marks = load_transitions(a.verdicts, layer)
+    slab_demands, beam_bars = split_beam(demands, cr.beam_rects(base, layer))
+    beam_groups = [br.beam_group(d) for d in beam_bars]
+    real, peaks = split_peaks(slab_demands, s, mesh, layer)
+    real, waived = split_waived(real, marks)
+    peaks, waived_peaks = split_waived(peaks, marks)
     plans = rg.options(real, s)
     program_tons = sum(d.count * d.length * rg.BAR_WEIGHT[d.size] for d in demands) / 2000
     print(f"{layer.face} {layer.direction}: {len(demands)} program groups ({program_tons:.1f} tons program-only); "
-          f"{len(peaks)} peaking left out")
+          f"{len(peaks)} peaking left out"
+          + (f"; {len(waived) + len(waived_peaks)} waived at mat-boundary notches" if a.verdicts else ""))
+    if beam_groups:
+        print(f"beam bars, kept out of the bands: {beam_callouts(beam_groups, layer)}")
     print(f"{'option':>6} {'groups':>7} {'tons':>6}")
     knee = rg.knee(plans, a.knee_tons_per_group)
     for i, p in enumerate(plans, 1):
@@ -179,7 +233,8 @@ def cmd_options(a):
     else:
         chosen = knee if a.pick == "knee" else rg.pick(plans, a.target_groups, a.max_tons)
     state = dict(layer=a.layer, settings=asdict(s), budget_lb=chosen["budget_lb"],
-                 depth=cr.depth_rule(base, layer, mesh), groups=chosen["plan"])
+                 depth=cr.depth_rule(base, layer, mesh), groups=chosen["plan"],
+                 verdicts=str(a.verdicts.resolve()) if a.verdicts else None, beam_groups=beam_groups)
     (a.work / "plan-1.json").write_text(json.dumps(state, indent=1))
     (a.work / "peaks.json").write_text(json.dumps([describe(d, layer) for d in peaks], indent=1))
     print(f"chose option {plans.index(chosen) + 1}: {chosen['groups']} groups, {chosen['tons']} tons -> plan-1.json")
@@ -208,21 +263,57 @@ def cmd_apply(a):
     old = user_bars(model, layer)
     for b in old:
         b.delete()
+    marks = load_transitions(state.get("verdicts"), layer)
+    if any("ends" not in g for g in state.get("beam_groups", [])):      # plans written before ends were kept
+        base = a.work / "base.cpt"
+        _, beam_bars = split_beam(cr.bars(base, layer, cr.PROGRAM), cr.beam_rects(base, layer))
+        state["beam_groups"] = [br.beam_group(d) for d in beam_bars]
+        (a.work / f"plan-{n}.json").write_text(json.dumps(state, indent=1))
+    stepped = 0
     for g in map(rg.from_dict, state["groups"]):
         mid = (g.a0 + g.a1) / 2
+        # Where the band crosses a mat boundary that really needs bars, draw it as two bar sets
+        # meeting at the boundary, each anchored there and each at its own slab's depth.
+        cuts = []
+        for b_at in sorted(b for a_at, b in marks["real"] if g.a0 - 1 <= a_at <= g.a1 + 1 and g.b0 + 1.5 < b < g.b1 - 1.5):
+            if not cuts or b_at - cuts[-1] > 3.0:
+                cuts.append(round(b_at, 2))
+        stepped += bool(cuts)
+        ends = [g.b0] + cuts + [g.b1]
+        for lo, hi in zip(ends, ends[1:]):
+            b = model.cad_manager.rebar_layer.add_concentrated_rebar(
+                LineSegment2D(Point2D(*layer.to_plan(mid, hi)), Point2D(*layer.to_plan(mid, lo))))
+            b.span_set = SpanSet.LONGITUDE if layer.direction == "long" else SpanSet.LATITUDE
+            b.slab_face = SlabFace.TOP if layer.face == "top" else SlabFace.BOTTOM
+            b.bar_type = bar
+            b.elevation_reference = ElevationReference.ABSOLUTE
+            b.elevation_from_reference = bar_elevation(state, mesh.thinnest(layer, g.a0, g.a1, lo, hi))
+            b.ending_anchorage_1 = BarEnd.ANCHORED if hi in cuts else BarEnd.STRAIGHT
+            b.ending_anchorage_2 = BarEnd.ANCHORED if lo in cuts else BarEnd.STRAIGHT
+            b.extent_zone_width = g.a1 - g.a0
+            b.set_extent_zone_width_fractions(0.5)
+            b.spacing = g.spacing(s)
+    for g in state.get("beam_groups", []):
+        # the beam's own bars: by count, inside the beam width, at the beam's depth
+        mid = (g["a0"] + g["a1"]) / 2
         b = model.cad_manager.rebar_layer.add_concentrated_rebar(
-            LineSegment2D(Point2D(*layer.to_plan(mid, g.b1)), Point2D(*layer.to_plan(mid, g.b0))))
+            LineSegment2D(Point2D(*layer.to_plan(mid, g["b1"])), Point2D(*layer.to_plan(mid, g["b0"]))))
         b.span_set = SpanSet.LONGITUDE if layer.direction == "long" else SpanSet.LATITUDE
         b.slab_face = SlabFace.TOP if layer.face == "top" else SlabFace.BOTTOM
-        b.bar_type = bar
+        b.bar_type = model.rebars.rebar(g["size"])
         b.elevation_reference = ElevationReference.ABSOLUTE
-        b.elevation_from_reference = bar_elevation(state, mesh.thinnest(layer, g.a0, g.a1, g.b0, g.b1))
-        b.ending_anchorage_1 = BarEnd.STRAIGHT
-        b.ending_anchorage_2 = BarEnd.STRAIGHT
-        b.extent_zone_width = g.a1 - g.a0
+        b.elevation_from_reference = g["elevation"]
+        # keep the program's end conditions; the bar is drawn from its high-b end to its low-b end
+        end = {2: BarEnd.HOOK_90, 3: BarEnd.HOOK_180, 4: BarEnd.ANCHORED}
+        low, high = g.get("ends", (1, 1))
+        b.ending_anchorage_1 = end.get(high, BarEnd.STRAIGHT)
+        b.ending_anchorage_2 = end.get(low, BarEnd.STRAIGHT)
+        b.extent_zone_width = g["a1"] - g["a0"]
         b.set_extent_zone_width_fractions(0.5)
-        b.spacing = g.spacing(s)
-    print(f"plan-{n}: replaced {len(old)} user groups with {len(state['groups'])}")
+        b.count = g["count"]
+    print(f"plan-{n}: replaced {len(old)} user groups with {len(state['groups'])}"
+          + (f"; {stepped} drawn as stepped pairs anchored at a mat boundary" if stepped else "")
+          + (f"; {len(state['beam_groups'])} beam bar groups" if state.get("beam_groups") else ""))
     note(a.work, f"plan {n} applied: {len(state['groups'])} user groups")
 
 
@@ -234,18 +325,41 @@ def cmd_verify(a):
     note(a.work, f"round {n}: calc started")
     secs = calc_and_save(model, path)
     left = cr.bars(path, layer, cr.PROGRAM)
-    real, peaks = split_peaks(left, s, cr.Mesh(path), layer)
+    marks = load_transitions(state.get("verdicts"), layer)
+    rects = cr.beam_rects(path, layer)
+    slab_left, beam_left = split_beam(left, rects)
+    beam_ends = [d for d in beam_left if br.at_beam_end(d, rects)]
+    beam_short = [d for d in beam_left if d not in beam_ends]
+    real, peaks = split_peaks(slab_left, s, cr.Mesh(path), layer)
+    real, waived = split_waived(real, marks)
+    peaks, waived_peaks = split_waived(peaks, marks)
+    waived += waived_peaks
     groups = [rg.from_dict(g) for g in state["groups"]]
     left_tons = sum(d.count * d.length * rg.BAR_WEIGHT[d.size] for d in left) / 2000
     print(f"round {n} (calc+save {secs:.0f}s): {len(groups)} user groups, {tons_of(groups, s):.1f} tons; "
-          f"program left: {len(real)} real, {len(peaks)} peaking ({left_tons:.2f} tons)")
-    note(a.work, f"round {n} calc done in {secs:.0f}s: {len(real)} real, {len(peaks)} peaking left")
+          f"program left: {len(real)} real, {len(peaks)} peaking, {len(waived)} waived at notches ({left_tons:.2f} tons)")
+    note(a.work, f"round {n} calc done in {secs:.0f}s: {len(real)} real, {len(peaks)} peaking, {len(waived)} waived")
+    if state.get("beam_groups"):
+        print(f"  beam bars in: {beam_callouts(state['beam_groups'], layer)}")
+    # Inside a beam the program can still ask for two things. Short at mid-span: added to the
+    # beam's own bars by the next absorb. At a beam end, under heavy column top bars: the
+    # engineer's call, never added automatically; an override records "no bar called out".
+    overrides = br.overrides(a.work.parent, layer.name)
+    for d in beam_short:
+        print("  beam bars short", describe(d, layer))
+    for d in beam_ends:
+        o = br.override_at(overrides, *layer.to_plan((d.a0 + d.a1) / 2, (d.b0 + d.b1) / 2))
+        print(f"  no bar called out (override: {o['reason']})" if o else "  beam end, engineer's call", describe(d, layer))
+    (a.work / "beam-ends.json").write_text(json.dumps([describe(d, layer) for d in beam_ends], indent=1))
     for d in real:
         print("  real   ", describe(d, layer))
     for d in peaks:
         print("  peaking", describe(d, layer))
+    for d in waived:
+        print("  waived ", describe(d, layer))
     (a.work / "peaks.json").write_text(json.dumps([describe(d, layer) for d in peaks], indent=1))
-    return real, peaks
+    (a.work / "waived.json").write_text(json.dumps([describe(d, layer) for d in waived], indent=1))
+    return real + beam_short, peaks
 
 
 def cmd_absorb(a):
@@ -253,8 +367,14 @@ def cmd_absorb(a):
     n = latest(a.work, "plan")
     state = load_plan(a.work, n)
     s = settings_of(state)
-    path = a.work / f"round-{n}.cpt"
-    real, peaks = split_peaks(cr.bars(path, layer, cr.PROGRAM), s, cr.Mesh(path), layer)
+    path = a.from_model or a.work / f"round-{n}.cpt"
+    marks = load_transitions(state.get("verdicts"), layer)
+    rects = cr.beam_rects(path, layer)
+    slab_left, beam_left = split_beam(cr.bars(path, layer, cr.PROGRAM), rects)
+    beam_short = [d for d in beam_left if not br.at_beam_end(d, rects)]
+    real, peaks = split_peaks(slab_left, s, cr.Mesh(path), layer)
+    real, _ = split_waived(real, marks)
+    peaks, _ = split_waived(peaks, marks)
     groups = [rg.from_dict(g) for g in state["groups"]]
     groups, unplaced = rg.absorb(groups, real, s)
     groups += rg.seed(unplaced, s)
@@ -266,14 +386,16 @@ def cmd_absorb(a):
             print("  peak left", describe(d, layer))
     groups = rg.merge_until(groups, s, state["budget_lb"])
     plan = [asdict(g) for g in groups]
-    if plan == state["groups"]:
+    if plan == state["groups"] and not beam_short:
         print("nothing left to absorb")
         note(a.work, "nothing left to absorb; finished")
         return False
     state["groups"] = plan
+    state["beam_groups"] = br.grow_beam_groups(state.get("beam_groups", []), beam_short, rects)
     (a.work / f"plan-{n + 1}.json").write_text(json.dumps(state, indent=1))
     print(f"plan-{n + 1}: absorbed {len(real) - len(unplaced)}, new {len(unplaced)}{peak_note}; "
-          f"{len(groups)} groups, {tons_of(groups, s):.1f} tons")
+          f"{len(groups)} groups, {tons_of(groups, s):.1f} tons"
+          + (f"; beam bars grown over {len(beam_short)} mid-span leftovers" if beam_short else ""))
     note(a.work, f"plan {n + 1} written: {len(groups)} groups, {tons_of(groups, s):.1f} tons")
     return True
 
@@ -306,6 +428,12 @@ def main(argv=None):
     p.add_argument("--reuse-calc", action="store_true",
                    help="baseline: keep the current calc when the layer has no user bars")
     p.add_argument("--plan", type=int, help="apply this plan number (default latest)")
+    p.add_argument("--verdicts", type=Path,
+                   help="options: verdicts.json from transition_check.py; notch-only bars are waived, "
+                        "bands crossing a real mat boundary are drawn as two anchored sets")
+    p.add_argument("--from-model", type=Path,
+                   help="absorb: read the leftovers from this saved, calculated model instead of the folder's "
+                        "last round (when a later run in another work folder holds the newest state)")
     p.add_argument("--rounds", type=int, default=4)
     p.add_argument("--absorb-peaks", action="store_true",
                    help="stretch the nearest group over peaking bars instead of only listing them")

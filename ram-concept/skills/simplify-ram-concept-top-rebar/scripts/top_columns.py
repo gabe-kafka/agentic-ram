@@ -40,7 +40,7 @@ class ColumnGroup:
     column: int
     count: int
     length: float
-    kind: str                     # "typical" or "own"
+    kind: str                     # "typical", "own" or "beam end"
     a0: float
     a1: float
     b0: float
@@ -56,10 +56,17 @@ class ColumnGroup:
 
 
 def assign(demands, columns, reach: float = 2.0):
-    """Give each demand to the column under it. Returns (per-column bars, demands over no column)."""
+    """Give each demand to the column under it. Returns (per-column bars, demands over no column).
+
+    The largest group at a column sets where the bars go. A second group adds
+    to it only when at least half its length lies alongside; a stray bar
+    further along the span stays loose. Stretching the heavy column bars out
+    to reach it puts far more top steel along the span than the program asked
+    for (on 2636 the program then demanded 32#7 in the bottom of a beam).
+    """
     found: dict[int, ColumnBars] = {}
     loose = []
-    for d in demands:
+    for d in sorted(demands, key=lambda d: -d.count):
         under = [i for i, (a, b) in enumerate(columns)
                  if d.a0 - reach <= a <= d.a1 + reach and d.b0 - reach <= b <= d.b1 + reach]
         if not under:
@@ -69,6 +76,9 @@ def assign(demands, columns, reach: float = 2.0):
         i = min(under, key=lambda i: math.hypot(columns[i][0] - ca, columns[i][1] - cb))
         if i in found:
             f = found[i]
+            if min(f.b1, d.b1) - max(f.b0, d.b0) < 0.5 * d.length:
+                loose.append(d)
+                continue
             f.count += d.count
             f.a0, f.a1, f.b0, f.b1 = min(f.a0, d.a0), max(f.a1, d.a1), min(f.b0, d.b0), max(f.b1, d.b1)
         else:
@@ -104,15 +114,18 @@ def type_options(bars: list[ColumnBars], most: int = 4) -> list[dict]:
     return out
 
 
-def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b: True) -> list[ColumnGroup]:
+def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b: True,
+          beam_ends: frozenset = frozenset()) -> list[ColumnGroup]:
     """One group per column: the smallest typical count that covers it, else its own count.
 
     A typical callout's length is the longest demand among its columns. Bars
     stay centred on the program bars; where that would run off the slab the
-    bar keeps the program bar's end on that side.
+    bar keeps the program bar's end on that side. Columns in ``beam_ends``
+    keep their own count and length (kind "beam end") and do not stretch the
+    typical callouts.
     """
     typical = tuple(sorted(typical))
-    kind_of = lambda c: next((t for t in typical if c.count <= t), None)
+    kind_of = lambda c: None if c.column in beam_ends else next((t for t in typical if c.count <= t), None)
     lengths = {t: max((_feet(c.length) for c in bars if kind_of(c) == t), default=0) for t in typical}
     groups = []
     for c in bars:
@@ -125,15 +138,18 @@ def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b:
         if not on_slab(mid_a, b1):
             b1 = c.b1
             b0 = max(b1 - length, b0) if on_slab(mid_a, b1 - length) else c.b0
-        groups.append(ColumnGroup(c.column, count, round(b1 - b0, 2), "typical" if t else "own",
+        kind = "typical" if t else ("beam end" if c.column in beam_ends else "own")
+        groups.append(ColumnGroup(c.column, count, round(b1 - b0, 2), kind,
                                   c.a0, c.a1, b0, b1, c.elevation, c.size))
     return groups
 
 
 def schedule(groups: list[ColumnGroup]) -> list[tuple[str, int]]:
-    """Callouts with how many columns use each, typical first then own counts ascending."""
+    """Callouts with how many columns use each: typical first, then own counts, then beam ends."""
+    order = {"typical": 0, "own": 1, "beam end": 2}
     seen: dict[tuple, int] = {}
     for g in groups:
-        key = (g.kind != "typical", g.count, g.length, g.size)
+        key = (order[g.kind], g.count, g.length, g.size)
         seen[key] = seen.get(key, 0) + 1
-    return [(f"{n}{size} x {length:g}'", k) for (_, n, length, size), k in sorted(seen.items())]
+    return [(f"{n}{size} x {length:g}'" + (" (beam end)" if rank == 2 else ""), k)
+            for (rank, n, length, size), k in sorted(seen.items())]

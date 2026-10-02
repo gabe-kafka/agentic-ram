@@ -35,6 +35,12 @@ class AssignTests(unittest.TestCase):
         bars, _ = tc.assign([demand(0, 6, 45, 55, 4), demand(4, 10, 46, 57, 3)], [(5, 50)])
         self.assertEqual((bars[0].count, bars[0].a0, bars[0].a1, bars[0].b0, bars[0].b1), (7, 0, 10, 45, 57))
 
+    def test_stray_bar_along_the_span_does_not_stretch_the_column_bars(self) -> None:
+        main, stray = demand(0, 10, 45, 57.5, 27), demand(2, 8, 35, 48, 1)     # stray overlaps 3 of its 13 ft
+        bars, loose = tc.assign([stray, main], [(5, 50)])
+        self.assertEqual((bars[0].count, bars[0].b0, bars[0].b1), (27, 45, 57.5))
+        self.assertEqual(loose, [stray])
+
     def test_demand_over_no_column_is_left_loose(self) -> None:
         bars, loose = tc.assign([demand(100, 110, 45, 55, 6)], [(5, 50)])
         self.assertEqual((bars, len(loose)), ([], 1))
@@ -47,6 +53,13 @@ class TypedTests(unittest.TestCase):
         self.assertEqual([(g.count, g.length, g.kind) for g in groups],
                          [(10, 12, "typical"), (10, 12, "typical"), (15, 13, "typical"), (22, 11, "own")])
         self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 2), ("15#9 x 13'", 1), ("22#9 x 11'", 1)])
+
+    def test_beam_end_columns_keep_their_own_count_and_length(self) -> None:
+        bars = [column_bars(8, 11.6, 0), column_bars(9, 16.8, 1), column_bars(28, 21.8, 2)]
+        groups = tc.typed(bars, (10, 15), beam_ends=frozenset({1, 2}))
+        self.assertEqual([(g.count, g.length, g.kind) for g in groups],
+                         [(10, 12, "typical"), (9, 17, "beam end"), (28, 22, "beam end")])
+        self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 1), ("9#9 x 17' (beam end)", 1), ("28#9 x 22' (beam end)", 1)])
 
     def test_an_inch_over_does_not_earn_another_foot(self) -> None:
         self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,))[0].length, 15)

@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rebar-dashboard",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "C:\\Users\\GabrielKafka-Gibbons\\Desktop\\agentic-ram\\ram-concept\\skills\\simplify-ram-concept-rebar\\scripts\\dashboard.py",
+        "--root",
+        "C:\\Users\\GabrielKafka-Gibbons\\Documents\\eng-agent\\projects\\2636-mt-pleasant-building-2\\ram-concept\\rebar-simplify",
+        "--port",
+        "8765",
+        "--turn-file",
+        "C:\\Users\\GabrielKafka-Gibbons\\Desktop\\agentic-ram\\.claude\\turn.json"
+      ],
+      "port": 8765
+    }
+  ]
+}

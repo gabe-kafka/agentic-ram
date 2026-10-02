@@ -64,6 +64,11 @@ group removed.
 - Bar size is the layer's dominant program size (#7 on 2636).
 - Depth follows the thinnest slab under each group. A band set for 16 in
   slab that crosses 12 in slab sits below the soffit and gets no credit.
+- Bars inside a concrete beam are not banded. The rules are in
+  `../clean-up-ram-concept-t-beams`: mid-span bars become the beam's own
+  bars by count, and a mid-span leftover adds to that count on the next
+  absorb. Bars reaching a beam end are listed as the engineer's call, or as
+  `no bar called out (override: reason)` once the engineer overrides them.
 - `--absorb-peaks` stretches the nearest group over 1 to 2 bar, 5 ft or
   shorter program bars. It never tightens spacing or adds a group for one.
   Peaks with no group within 5 ft, or already inside a group, stay listed

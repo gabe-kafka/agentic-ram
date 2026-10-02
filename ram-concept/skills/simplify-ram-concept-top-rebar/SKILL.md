@@ -23,26 +23,19 @@ base.cpt (no user top bars, calculated)
 
 ## Check first: beams
 
-Columns on a concrete beam are T or L beam sections, not slab. Until the
-design spans along each beam are set up as beams, the program spreads a
-large count of bars across the slab strip (2636: 20 to 27 #9 at beam columns
-against 10 typical). `options` and `plan` warn when spans along beams still
-use slab settings. Fix that with `../set-ram-concept-beam-strips` and recalc
-before picking typical counts; design strips are not in the API.
+Every beam rule lives in `../clean-up-ram-concept-t-beams`; read it when the
+slab has concrete beams. What matters here:
 
-Office setup for a span along a beam (R. Darling, 2026-09-23):
+- Until the design spans along each beam are set up as beams, the program
+  spreads a large count of bars across the slab strip (2636: 20 to 27 #9 at
+  beam columns against 10 typical). `options` and `plan` warn when spans
+  along beams still use slab settings. Fix that and recalc before picking
+  typical counts.
+- Beam runs through the column, parallel to the bars: no top bar called out.
+- Beam ends at the column: the column keeps its own count and length.
 
-- Strip generation: unchanged.
-- Column strip: width calc to the code T-beam option, cross section to
-  **T or L**, torsion design to **beam**, and any other setting that offers
-  "beam" to beam. Covers stay 2 in.
-- Middle strip: untick "use column strip properties" and give it the typical
-  slab strip properties.
-- Shear bars: hold until reviewed.
-
-Effect: the bars concentrate over the beam and the count drops. The same
-note covers the rest of the top steel: continuous runs over walls, and group
-the top bars over columns as much as possible.
+Ryan's note also covers the rest of the top steel: continuous runs over
+walls, and group the top bars over columns as much as possible.
 
 ## Run (from this skill's `scripts/`)
 
@@ -55,7 +48,8 @@ python simplify_top_rebar.py run     --work <dir> --typical 10 15
 ```
 
 `plan`, `apply` and `verify` run single steps. `run` without `--typical`
-applies the newest plan.
+applies the newest plan. `report` prints the last round again without a
+calc, for example after a new override.
 
 ## How groups are made
 
@@ -72,6 +66,16 @@ applies the newest plan.
   bar's end on that side.
 - Bars are by count (`count`), straight both ends.
 - Columns with no top demand get no group.
+- **A column with a beam running through it gets no group in the beam's
+  direction.** `plan` records it as an override ("beam carries this
+  moment") in `decisions.json`; the report then reads `no top bar called out
+  (override): (269,111) ... [program would add 8#9]`. The program bar stays
+  yellow in Concept and is not chased.
+- A column at the end of a beam keeps its own count and length (kind "beam
+  end") and does not stretch the typical callouts. Bars that cross a beam
+  are treated like any other column.
+- Any other location the engineer overrides (`t_beam_cleanup.py override`)
+  is set aside the same way, over a column or not.
 
 ## Presenting options
 
@@ -90,14 +94,27 @@ way):
 
 First calc: no real program demand left over any column in either direction.
 
-## What it leaves
+## General top bars (away from columns)
 
-Program top bars that are not over a column stay as program bars: over
-walls, at wall ends and around cores. On 2636 that was 70 groups (2.0 tons)
-in longitude and 46 (1.7 tons) in latitude. Report them; the engineer decides
-whether to band them with the engine (`simplify_rebar.py`, layer `top-long`
-or `top-lat`) or detail them by hand. Running the engine on a top layer
-replaces that layer's column groups, so that path is not wired up yet.
+The second class: program top bars over no column (over walls, at wall ends,
+around cores). Treated like bottom bars, as bands by spacing, once the
+column groups are in and calculated. The column groups are kept as they are.
+
+```powershell
+python simplify_top_rebar.py band-options --work <dir> --band-size "#7"
+python simplify_top_rebar.py bands        --work <dir> --band-size "#7" --option LONG LAT
+python simplify_top_rebar.py run-bands    --work <dir>
+```
+
+- `band-options` prints the bands-vs-tons table per direction with the knee
+  row marked; the engineer picks. `bands` without `--option` takes the knee.
+- Write spaced bars as `#7 @12"`.
+- `run-bands` applies, calcs and grows the bands over leftovers until
+  nothing real is left away from columns. Absorbing adds steel; say so.
+- `--verdicts` waives bars that sit only on a mat-boundary notch.
+- 2636: the engineer went one row past the knee for fewer bands. Longitude
+  20 bands, 8.3 tons; latitude 18 bands, 7.5 tons after absorbing (program
+  only: 1.8 and 1.6 tons).
 
 Flag the heavy columns on their own. Check first whether they sit on a
 beam (see above). Otherwise more than about 15 #9 bars over one column

@@ -15,6 +15,10 @@
          font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
   .dim { color:var(--dim); }
   .ok { color:var(--ok); } .run { color:var(--run); } .bad { color:var(--bad); } .idle { color:var(--dim); }
+  /* your turn: the whole page goes neon green */
+  body.ready { background:#39ff14; color:#000; }
+  body.ready #word, body.ready #what, body.ready #more > summary { color:#000; }
+  body.ready .card { color:var(--ink); }
   #big { text-align:center; padding:14vh 0 5vh; }
   #word { font-size:clamp(34px, 9vw, 84px); font-weight:700; line-height:1.1; }
   #what { font-size:18px; color:var(--dim); margin-top:12px; min-height:1.5em; }
@@ -70,9 +74,11 @@ async function tick() {
       what.textContent = s.last ? "last: " + s.last.text : "";
     }
     document.title = s.state === "working" ? "Working…" : "Ready for review";
+    document.body.className = s.state === "working" ? "" : "ready";
     document.getElementById("grid").replaceChildren(...s.layers.map(card));
   } catch (e) {
     word.textContent = "Status page offline"; word.className = "bad"; what.textContent = "";
+    document.body.className = "";
   }
 }
 tick(); setInterval(tick, 2000);

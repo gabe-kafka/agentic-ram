@@ -5,7 +5,8 @@ description: Set RAM Concept design spans along concrete beams to the T or L bea
 
 # T-Beam Strips (RAM Concept)
 
-Follow `ram-concept/skills/set-ram-concept-beam-strips/SKILL.md`.
+Follow `ram-concept/skills/set-ram-concept-beam-strips/SKILL.md`. This is
+step 1 of `/t-beam-cleanup`, which owns the rest of the beam conditions.
 
 - Run `beam_spans.py` on a saved copy first; it lists the beam spans and
   prints the command for each direction.

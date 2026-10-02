@@ -1,0 +1,4 @@
+interface:
+  display_name: "T-Beam Cleanup (RAM Concept)"
+  short_description: "Beam conditions and overrides for slab rebar"
+  default_prompt: "Use $clean-up-ram-concept-t-beams to check every beam condition in the slab rebar and record any no-bar overrides the engineer asks for."

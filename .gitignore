@@ -19,3 +19,4 @@ __pycache__/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+.claude/turn.json

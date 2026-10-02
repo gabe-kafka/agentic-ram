@@ -37,6 +37,10 @@ class Layer:
         return Layer(face, direction)
 
     @property
+    def name(self) -> str:
+        return f"{'bot' if self.face == 'bottom' else 'top'}-{self.direction}"
+
+    @property
     def letter(self) -> str:
         return "T" if self.face == "top" else "B"
 
@@ -60,15 +64,18 @@ def connect(path: Path) -> sqlite3.Connection:
 def bars(path: Path, layer: Layer, designed_by: int) -> list[Demand]:
     out = []
     rows = connect(path).execute(
-        "select BarType, Point0, Point1, LeftPoint, RightPoint, BarCount, AbsoluteElevation "
-        "from ConcentratedRebar where SpanDirection=? and BarFace=? and DesignedBy=?",
+        "select BarType, Point0, Point1, LeftPoint, RightPoint, BarCount, AbsoluteElevation, BarEnd0, BarEnd1, "
+        "BarUsesSpacing from ConcentratedRebar where SpanDirection=? and BarFace=? and DesignedBy=?",
         (DIRECTION[layer.direction], FACE[layer.face], designed_by))
-    for bar_type, p0, p1, lp, rp, count, elevation in rows:
+    for bar_type, p0, p1, lp, rp, count, elevation, end0, end1, uses_spacing in rows:
         (s0, s1), (l, r) = _points(p0 + p1), _points(lp + rp)
         a = sorted((layer.to_local(*l)[0], layer.to_local(*r)[0]))
         b = sorted((layer.to_local(*s0)[1], layer.to_local(*s1)[1]))
         d = Demand(a[0], a[1], b[0], b[1], count, BAR_SIZES[bar_type])
         d.elevation = elevation / IN
+        d.by_count = not uses_spacing
+        # end condition codes (1 straight, 2 hook 90, 3 hook 180, 4 anchored) at the low-b and high-b ends
+        d.ends = (end0, end1) if layer.to_local(*s0)[1] <= layer.to_local(*s1)[1] else (end1, end0)
         out.append(d)
     return out
 
@@ -110,6 +117,18 @@ class Mesh:
             if min(xs) - reach <= x <= max(xs) + reach and min(ys) - reach <= y <= max(ys) + reach:
                 return True
         return self.thickness(x, y) is None
+
+
+def beam_rects(path: Path, layer: Layer) -> list[tuple[float, float, float, float]]:
+    """Concrete beams that run along this layer's bars, as (a0, a1, b0, b1) in the layer's local axes."""
+    out = []
+    for p0, p1, width in connect(path).execute("select Point0, Point1, Width from Beam"):
+        (x0, y0), (x1, y1) = _points(p0 + p1)
+        (a0, b0), (a1, b1) = layer.to_local(x0, y0), layer.to_local(x1, y1)
+        if abs(b1 - b0) > abs(a1 - a0):
+            mid, half = (a0 + a1) / 2, width / FT / 2
+            out.append((mid - half, mid + half, min(b0, b1), max(b0, b1)))
+    return out
 
 
 def inside(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
