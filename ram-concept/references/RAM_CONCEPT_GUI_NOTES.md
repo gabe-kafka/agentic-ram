@@ -83,6 +83,48 @@ Separate slab-property regions at terraces, balconies, and step-downs. Put
 reinforcement in matching regions so cover follows the correct elevation.
 Confirm generated stud rails do not run through a modeled step.
 
+## Two-way shear: stud rails (office path)
+
+From a senior reviewer's walkthrough, 2026-10-02. Not yet run end to end by
+this workspace; guide it by hand and checkpoint first.
+
+Settings before reading results:
+
+- Punching checks: search radius 8 ft to start, `Design SSR if necessary` on.
+- SSR size 3/4 in. `Criteria > Materials > SSR Systems > Stud Spacing` on
+  that system: `Auto Calc`, not the default `Code Max`. `Code Max` holds the
+  widest stud spacing and piles on rails.
+
+The generated rails are a minimum design with no MEP penetrations in it.
+Penetrations are not located reliably before construction, so assume one:
+
+1. Add a 6 in x 6 in slab opening at the face of every column that has stud
+   rails. Use the long face and shift it off the centre of the face; an
+   opening at mid-face blocks the rail the program may need there.
+2. Calc. The program removes the critical perimeter inside the opening's
+   projection on its own.
+3. Review every rail set for failures, calc errors, and rails from
+   neighbouring columns that overlap. Each column is checked alone, so
+   overlapping rails are not analysed together; avoid them.
+4. Where rails stop generating, raise that check's search radius. About 10
+   to 12 ft is the most; a 20 ft rail is not acceptable.
+5. Still failing: overlay the architectural plan above. Bathrooms and
+   washer/dryers near the column mean the opening stays. With nothing
+   nearby, move the opening back a foot or two at a time.
+6. Nothing works: a beam is the next option.
+
+Then group the rails into a short schedule in the office stud rail
+spreadsheet: number of rails, studs per rail, typical stud spacing; rail
+length follows. Group by rail length in steps of about 1 to 1.5 ft, then by
+stud spacing (light about 5 to 6 in, heavy about 3 to 4 in; the same length
+at two spacings stays two types). Concept can export the stud rail table to
+a text file; rows come out unordered. Last, select each stud rail set in
+the model, change it to `User`, and set its properties to its schedule type.
+Exterior columns need configurations for four, three and two sides.
+
+`scripts/inspect-punching-checks.py` reads the saved checks, search radii
+and generated rail geometry from a checkpoint without opening Concept.
+
 ## Mat / lateral foundation design (office path)
 
 RAM Foundation is weak for wall foundations. Design lateral/wall mats in
