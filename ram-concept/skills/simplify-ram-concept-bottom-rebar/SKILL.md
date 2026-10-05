@@ -18,12 +18,16 @@ bot-lat:  baseline -> options table -> engineer picks -> run
 
 ## Check first
 
-- Design spans drawn along walls and sliver strips at slab edges create
-  bottom bars that are not real demand. Settle the strips before simplifying.
-- Deleting a span that runs along a wall does **not** widen the neighbouring
-  strip. Concept stops it halfway to the wall, so the half-bay beside the
-  wall drops out of design in that direction. Compare strip coverage before
-  and after, or set those strip widths by hand.
+- Sliver strips create bottom bars that are not real demand: a mat bar may
+  not fall inside a very narrow section. Fix the strip (boundary strip set
+  to manual, or merge two adjacent strips); do not chase the bars.
+- **Do not delete the design spans over exterior walls.** On 2636 they were
+  deleted before the first pass and the reviewer flagged it: bars show as
+  needed beside the wall and nothing shows where the strip is gone. Concept
+  also stops the neighbouring strip halfway to the wall, so the half-bay
+  beside the wall drops out of design in that direction.
+- Additional bottom bars are needed only at column strips in most cases.
+  Keep a callout to about 30 ft.
 
 ## Run (from the engine's `scripts/`)
 

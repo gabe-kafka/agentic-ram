@@ -5,8 +5,9 @@ another machine. It is the durable record of how the pieces fit, which rules
 are settled, and what is not built yet. Skill `SKILL.md` files hold the
 run-level detail; job numbers and results live in `eng-agent`.
 
-Last updated 2026-10-02, after the first full pass on one transfer slab
-(job 2636). Everything here is proven on that one model only.
+Last updated 2026-10-05, after the first full pass on one transfer slab
+(job 2636) and the senior engineer's review of it. Everything here is
+proven on that one model only, and the review changes several rules.
 
 ## Goal
 
@@ -41,7 +42,9 @@ Four pieces, each with one job. Adopted 2026-10-02.
 
 The two repos stay separate on purpose: the tools may be published one day,
 and `eng-agent` holds client meeting records. Do not move job files into
-`agentic-ram`.
+`agentic-ram`. Model files never go in either repo: check what is staged
+before every commit (two Concept snapshots were committed here by a blanket
+`git add` on 2026-10-05 and had to be removed).
 
 Anything that calculates needs the work PC. From any other machine the
 status, decisions, plans and layout images can be read, and rules or code
@@ -88,14 +91,14 @@ Each class has its own rule. A program bar is assigned to exactly one class.
 |---|---|---|---|
 | Bottom bands | Bands by spacing; greedy merge under a budget; knee row suggested | `simplify-ram-concept-rebar` (`rebar_groups.py`) | proven |
 | Top column groups | One group by count per column per direction; typical counts (e.g. 10 and 15) plus own counts | `simplify-ram-concept-top-rebar` (`top_columns.py`) | proven, locked in |
-| Top general bands | Program top bars over no column, banded by spacing after the column groups are in | top tool: `band-options`, `bands`, `run-bands` | proven; zone rule not applied yet |
+| Top general bands | Program top bars over no column, banded by spacing after the column groups are in | top tool: `band-options`, `bands`, `run-bands` | runs, but **contradicts the 2026-10-05 review** (top bars in middle strips); see Reviewer rules |
 | Peaking | 2 bars or fewer and 5 ft or shorter: captured by the group beside it, else listed | `rg.is_peak`, `rg.absorb_peaks`, `tc.capture` | capture is partial, see Gaps |
 | Waived at a mat notch | Bar sits only on a "notch only" mat boundary: not required | `check-ram-concept-slab-transitions` + `sr.split_waived` | script proven; no SKILL.md |
 | Real mat transition | Band crossing a "real" mat boundary is drawn as two sets anchored at the boundary | bottom tool `apply` | proven |
 | Beam: strips | Spans along beams set as T or L beams first | `set-ram-concept-beam-strips` | proven (T only) |
 | Beam: top, runs through column | No top bar called out; recorded as an override | `clean-up-ram-concept-t-beams` | proven |
 | Beam: top, ends at column | Column keeps its own count and length | same | proven |
-| Beam: bottom, mid-span | The beam's own bars by count; mid-span leftovers add to the count | same + bottom tool `absorb` | proven |
+| Beam: bottom, mid-span | The beam's own bars by count; mid-span leftovers add to the count | same + bottom tool `absorb` | runs, but bar size, layers, length and cover are to change per the review |
 | Beam: bottom, at beam end | Engineer's call; never added automatically | same | proven |
 | Override | "No bar called out here", with reason, source and date | `beam_rules.py`, `decisions.json` | proven |
 
@@ -126,6 +129,79 @@ extent is the next strip's bar. Widening thins the column bars where they
 are needed and the program asks for more every round (2636: a 15#9 group
 ran to 25#9 in four rounds before this was caught).
 
+## Reviewer rules (senior review of the first pass, 2026-10-05)
+
+The first pass was reviewed sheet by sheet. The reviewer agreed with where
+program bars were left out, and asked for the layout to be refined. These
+rules outrank what the tools do today; the Gaps list says what is not built.
+
+**Design strips come first.** Most odd bars are strip problems, not demand.
+
+- A sliver middle strip makes the program add bars, because a mat bar may
+  not physically fall inside the section. Fix the strip: a boundary strip
+  set to manual, or two adjacent strips merged into one.
+- Strip width stays on `code slab`, never full width.
+- Add the strips at column faces where they are missing.
+- At a step-down, segment the strip so each part is checked at its depth. A
+  middle strip partly over a lower slab is checked entirely at the lower
+  depth; pull it back to the face with a boundary segment.
+- A column strip split by a step beside a column is still one column strip:
+  add the two parts' demands and capacities and reinforce it as one.
+- **Do not delete the strips over exterior walls.** Bars then show as needed
+  beside the wall and nothing shows where the strip is missing. (The first
+  pass deleted them; the reviewer flagged the result.)
+- An end support set as free when it is not a true cantilever puts top bars
+  in the middle strip; setting it to none usually clears them.
+
+**Where bars go.**
+
+- **Avoid top bars in the middle strip and at mid-span.** They are sometimes
+  needed where two columns are close and share the negative moment, but the
+  final reviewer questions every one. Widen the column strips to line up
+  across adjacent spans instead.
+- Bottom bars merge wherever needed. Top bars are merged with care, to stay
+  out of middle strips.
+- Additional bottom bars are needed only at column strips in most cases.
+- Reinforce locally at corners and over walls, not one bar segment across a
+  whole section.
+- A callout is normally at most **30 ft** long. Do not stretch one past
+  that to cover a bar needed in a single bay.
+- Spacing looser where capacity is about double the demand: the review
+  took bands from 9 in to 18 in and removed bands at 6 in.
+
+**How bars are drawn**, because documentation copies the model's linework.
+
+- Bars crossing a step-down: the anchored pair only at the step itself;
+  full-length bars elsewhere.
+- A bar ending at a slab edge or a large opening has that end `Anchored`.
+  No split at a small bump-in.
+- At a large opening, split into separate callouts each side, anchored or
+  hooked at the face.
+
+**Leftover program bars.**
+
+- The end product is a design run with program reinforcement switched off:
+  the check that the user bars alone pass. That removes every program bar.
+- Until then small obvious ones are ignored. One-bar conditions: note the
+  location and check demand without program bars; the slab may be 1% over.
+- The reviewer's own method: remove bars that look excessive, rerun, and see
+  what comes back.
+
+**Beams** follow the office concrete quick reference (minimum and maximum
+bars in one layer by beam width; see `RAM_CONCEPT_GUI_NOTES.md`).
+
+- Top: the minimum number for the beam width over the full beam length, even
+  where the design needs none; they carry the stirrups.
+- Bottom: never more than the single-layer maximum. Go up a bar size (#7 to
+  #9) and add a second layer if needed. Extend to the beam ends, `Anchored`.
+- Beam bars on `Bottom Cover` 2 in, not `Absolute`.
+- Stirrups: #4 at 3 in to start; end, middle, end zones later.
+
+**Punching.**
+
+- Delete the punching checks at columns on beams.
+- Read status from Concept's own tables, not from whether rails exist.
+
 ## Where things live
 
 Repo `agentic-ram` (reusable, checked in):
@@ -147,6 +223,7 @@ ram-concept/skills/
     scripts/t_beam_cleanup.py           status | override
     scripts/beam_rules.py               pure beam rules and decisions (tested)
   set-ram-concept-beam-strips/        T or L beam strip setup (GUI-driven)
+  design-ram-concept-stud-rails/      draft: assumed openings, search radius, punching status
   check-ram-concept-slab-transitions/ transition_check.py (no SKILL.md yet)
 ram-concept/scripts/
   drive-window-without-display.ps1    post input and capture when the PC is locked
@@ -249,22 +326,44 @@ permitted.
 
 ## Gaps, in the order to take them
 
-1. **Zone rule** (above). Rebuild the top general bands by strip, then apply
-   the same rule to bottom midspan. Biggest open item.
-2. **Stray singles not yet captured**: bars just outside a column group's
-   extent and bars inside a band. The zone rule decides both.
-3. **Transition skill**: `transition_check.py` works and its verdicts are
-   wired into both tools, but there is no `SKILL.md`, the yellow notch bars
-   still show in Concept, and the senior reviewer has not seen the verdicts.
-4. **One driver for all four layers** with one work folder and one newest
-   model, replacing the per-layer folders.
-5. **Beam bar size**: counts by #7 do not fit one layer in a 20 in web;
-   the tool does not propose a larger bar.
-6. **L beams**: strip setup and checker only proven for T beams.
-7. **Callout format in the model**: Concept still prints `(10)#9x15T`;
-   the callout format strings on each bar are not set by the tools.
-8. Pre-existing failing test:
-   `test_attach_live_concept.test_parses_rss_launched_cpt_path`.
+1. **Top general bands contradict the review.** The tool bands every top
+   bar away from a column, including in middle strips, and goes past the
+   knee for fewer bands. The review wants almost no top bars in middle
+   strips. Rework: fix strips first, widen column strips, let the column
+   groups take what falls in them, and band only what is left at walls and
+   corners, locally.
+2. **Zone rule** (above), using `SpanSegmentStrip`. It is the mechanism for
+   item 1 and for bottom midspan. Stray singles are decided by it too.
+3. **Callout length cap of 30 ft.** `max_length` is 40 ft and absorbing
+   stretches groups further.
+4. **Step-downs.** `apply` splits a whole band into two anchored sets at a
+   real transition. Wanted: the anchored pair only at the step, continuous
+   bars in the main slab.
+5. **Ends and openings.** Bars are drawn straight-ended. Wanted: `Anchored`
+   at slab edges and large openings, and split callouts around openings.
+6. **Beam bars.** The tool copies the program's count in the program's bar
+   size (2636: 17#7 in a 20 in web, whose single-layer maximum is 7#7 or
+   6#9), on `Absolute` elevation, mid-span length only, no top bars, and
+   leaves beam-end bars as the engineer's call. Wanted: the quick reference
+   rules above. Extending the bottom bars to the ends, anchored, replaces
+   the beam-end class.
+7. **Final check with program reinforcement off.** Not found in the API or
+   driven through the GUI yet; today the tools only count leftover program
+   bars.
+8. **Exterior wall strips.** The bottom skill says to settle strips drawn
+   along walls before simplifying; it must not suggest deleting them.
+9. **Stud rails.** Draft tools only (`skills/design-ram-concept-stud-rails`):
+   openings by API, radius by GUI, status from the exported table. Grouping
+   into a schedule and setting rails to `User` are not built.
+10. **Transition skill**: `transition_check.py` works and its verdicts are
+    wired into both tools, but there is no `SKILL.md` and the yellow notch
+    bars still show in Concept.
+11. **One driver for all four layers** with one work folder and one newest
+    model, replacing the per-layer folders.
+12. **L beams**: strip setup and checker only proven for T beams.
+13. **Callout format in the model**: Concept still prints `(10)#9x15T`.
+14. Pre-existing failing test:
+    `test_attach_live_concept.test_parses_rss_launched_cpt_path`.
 
 ## Picking this up elsewhere
 

@@ -86,6 +86,22 @@ python t_beam_cleanup.py override --model <round-N.cpt> --beam-ends --reason "to
 The five numbered blocks from `status`, then the open count. Callouts as
 count then size: `15#7 x 26'`.
 
+## Changed by the senior review (2026-10-05); not built yet
+
+Conditions 4 and 5 are to be replaced by the office beam rules in
+`../../references/RAM_CONCEPT_GUI_NOTES.md` ("Beam reinforcement"):
+
+- Bottom bars never exceed the single-layer maximum for the beam width; go
+  up a bar size and add a layer instead of copying the program's count.
+- Bottom bars run to the ends of the beam, both ends `Anchored`. That
+  replaces the separate beam-end class and its overrides.
+- Top bars: the minimum number for the width over the full beam length.
+- Beam bars on `Bottom Cover` 2 in, not `Absolute`.
+- Punching checks at columns on beams are deleted, not left failing.
+
+Until the tool follows these, report its beam groups as a first pass and
+show the single-layer maximum beside each count.
+
 ## Flag to the engineer
 
 - More bars than fit one layer in the beam web (2636: 13 to 15 #7 in a

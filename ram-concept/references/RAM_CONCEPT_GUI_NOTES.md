@@ -85,8 +85,9 @@ Confirm generated stud rails do not run through a modeled step.
 
 ## Two-way shear: stud rails (office path)
 
-From a senior reviewer's walkthrough, 2026-10-02. Not yet run end to end by
-this workspace; guide it by hand and checkpoint first.
+From a senior reviewer's walkthroughs, 2026-10-02 and 2026-10-05. Run on one
+model as far as the openings, the radii and the status table; grouping and
+setting rails to `User` are not done yet. Checkpoint first.
 
 Settings before reading results:
 
@@ -122,8 +123,88 @@ a text file; rows come out unordered. Last, select each stud rail set in
 the model, change it to `User`, and set its properties to its schedule type.
 Exterior columns need configurations for four, three and two sides.
 
+Columns on beams: delete their punching checks entirely. Concept gives the
+beam no credit, so those checks only ever fail.
+
+Status comes from Concept's own tables, not from the saved file. The file
+holds the checks and the generated rails; it does not hold pass or fail.
+
+- `Layers > Design Status > Tables > Punching Check Analysis`: one row per
+  section with `Max SR Status`, unreinforced and reinforced stress ratio.
+- `... > Punching Check Design`: stud rail system, rail count, studs per
+  rail, first and typical spacing. This is the data the schedule needs.
+- Each table has an `Export...` button; the file is UTF-16 tab-separated
+  text with no byte-order mark.
+- `Layers > Design Status > Punching Shear Status Plan` shows the same on
+  plan: green OK, red failed or in error.
+
+Reading the status:
+
+| Status | Meaning | Next step |
+|---|---|---|
+| `OK`, `OK with SSR` | passes | none |
+| no row in the analysis table; plan shows `Error(s): Cutoff Sections` | rails generate but no cutoff section is found inside the search radius | raise that check's radius to 10, then 12 ft |
+| `Failed`, stud rail design on, unreinforced ratio above about 2 | over the limit even with stud rails; no rails are generated at any radius | move the assumed opening back, or a beam |
+| `Failed`, stud rail design off | usually a column on a beam | delete the check |
+
+A column that has lost its rails is not the same as a check in cutoff
+error. On the first run here the radius was raised on four columns that had
+no rails; they were failing on stress and the 15 real cutoff errors were
+missed until the table was exported.
+
+More from the reviewer:
+
+- The search radius is only an outer limit on rail length. Overlapping
+  radius circles are not a problem by themselves.
+- A rail set split three and two is a design stopped part-way by a cutoff
+  error; it evens out once the error clears.
+- A cutoff error beside a stair or shaft is often geometry: a slab edge at
+  or past the wall centreline leaves a sliver. In Mesh Input make the
+  opening flush with the interior face of the wall. The leftmost snap icon
+  adds nodes at intersections.
+- A column close to a wall may not really be governed by punching, or the
+  assumed penetration is not realistic there.
+- `Process > Calc Partial` is `Calc All` with options, including skipping
+  the warning pop-ups; quicker when only punching changed.
+- A 2 ft mesh helps some conditions and roughly doubles the element count.
+- After import from Modeler, review Mesh Input: openings and exterior slab
+  edges.
+
 `scripts/inspect-punching-checks.py` reads the saved checks, search radii
 and generated rail geometry from a checkpoint without opening Concept.
+Draft tools for the openings, radii and status are in
+`skills/design-ram-concept-stud-rails`.
+
+## Beam reinforcement (office path)
+
+From the office concrete quick reference (ACI 318-14 based; tables 3.6 and
+3.8), as walked through by a senior reviewer on 2026-10-05. Not yet applied
+by any tool here.
+
+| Beam width (in) | 12 | 14 | 16 | 18 | 20 | 22 | 24 | 26 | 28 | 30 | 36 | 42 | 48 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Minimum bars in one layer | 2 | 2 | 3 | 3 | 3 | 3 | 3 | 4 | 4 | 4 | 5 | 5 | 6 |
+| Maximum #6 in one layer | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 14 | 17 | 20 | 23 |
+| Maximum #7 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 15 | 18 | 21 |
+| Maximum #8 | 3 | 4 | 5 | 6 | 7 | 7 | 8 | 9 | 10 | 11 | 14 | 16 | 19 |
+| Maximum #9 | 3 | 4 | 4 | 5 | 6 | 7 | 8 | 8 | 9 | 10 | 12 | 15 | 17 |
+| Maximum #10 | 2 | 3 | 4 | 5 | 5 | 6 | 7 | 7 | 8 | 9 | 11 | 13 | 15 |
+| Maximum #11 | 2 | 3 | 3 | 4 | 5 | 5 | 6 | 7 | 7 | 8 | 10 | 11 | 13 |
+
+The maximums assume 1.5 in clear cover to the stirrup, 3/4 in aggregate, and
+#4 stirrups for #7 bars and larger.
+
+- **Top bars:** draw the minimum number for the beam width over the full
+  beam length, even where the design needs none; they carry the stirrups.
+  Use #9, or the bottom bar size, or #7 where the top is light.
+- **Bottom bars:** never more than the single-layer maximum. A program
+  result such as 15#7 in a 16 or 20 in beam means go up to #9, start with
+  the single-layer maximum, and add a second layer if needed. Extend the
+  bars to the ends of the beam and set both ends `Anchored`.
+- **Elevation:** set beam bars to `Bottom Cover` = 2 in, not `Absolute`.
+  It reads directly and makes a second layer simple.
+- **Stirrups:** #4 at 3 in on centre over the full length to start;
+  normally split into end, middle and end zones.
 
 ## Mat / lateral foundation design (office path)
 

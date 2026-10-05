@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stud Rails (RAM Concept, draft)"
+  short_description: "Assumed openings, search radius and status for punching"
+  default_prompt: "Use $design-ram-concept-stud-rails to add the assumed openings at stud rail columns, read the punching status from Concept's table and fix cutoff errors."

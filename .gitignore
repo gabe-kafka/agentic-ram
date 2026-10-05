@@ -1,6 +1,8 @@
 # Local RAM models and generated files
 ram-structural-system/models/ram/*
 !ram-structural-system/models/ram/.gitkeep
+ram-structural-system/models/sync-*/
+ram-structural-system/models/concept-swap-*/
 ram-structural-system/out/*
 !ram-structural-system/out/.gitkeep
 ram-concept/models/
@@ -20,3 +22,6 @@ __pycache__/
 # Personal Claude Code settings
 .claude/settings.local.json
 .claude/turn.json
+
+# Pictures the stud rail GUI driver saves beside itself
+ram-concept/skills/design-ram-concept-stud-rails/scripts/radius-*.png
