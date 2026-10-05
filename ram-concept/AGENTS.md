@@ -35,6 +35,15 @@ Standing rules from the engineer, which apply in every session:
   leaves it paused when handing back for review.
 - Save and sync into the production RAM model every 2 hours of Concept work;
   say at every report where the results live.
+- **Never let the engineer pick up in an outdated model.** Sync the newest
+  calculated Concept file into the production RAM model at every stopping
+  point, not only at the 2-hour mark. If a sync cannot be done, say so in
+  the first line, name the newest file, and say what the production model
+  is missing. When a session resumes, first compare the model that is open
+  with the newest saved file (hash the Concept member inside the `.rss`)
+  and report the result before anything else. A Concept window launched
+  from RAM Manager has no API; work continues only after it is closed and
+  an API session is started on a copy.
 
 ## Hand-guide GUI lessons
 
