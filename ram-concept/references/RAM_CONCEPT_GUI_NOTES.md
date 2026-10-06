@@ -299,12 +299,18 @@ Two models, to end up with as few stirrups as possible:
      along heavily loaded walls, and rarely at a column without stud rails.
 5. Save and close the copy. In the real model (strips on `code slab`
    width), at each required location, use the column strip. Legs across
-   the width go at the mat bar spacing, so the number of legs (`#L`)
-   follows from the strip width. Find the average `#L` through the slab
-   and, by judgement, reduce the regions to it. Along the span start at
-   6 in on centre. The program's own answer is two legs at a tight
-   spacing; override it (`CS Legs in Shear Reinforcement` on the span's
-   `Column Strip` tab, or the stirrup's own properties).
+   the width go at the same 6 in as the stirrups along the span: a 6 by
+   6 in grid of legs over the strip, so the number of legs (`#L`) is the
+   strip width in feet times two (engineer's rule, 2026-10-06; the
+   written process says "at the mat bar spacing", which the office
+   reads as this grid). Find the average `#L` through the slab and, by
+   judgement, reduce the regions to it. Along the span start at 6 in on
+   centre. The program's own answer is two legs at a tight spacing;
+   override it (`CS Legs in Shear Reinforcement` on the span's `Column
+   Strip` tab, or the stirrup's own properties). The API can do it:
+   `rebar_layer.add_transverse_rebar` with legs, spacing, bar and
+   `DesignedBy.USER` (see `skills/design-ram-concept-stud-rails/scripts/
+   place_stirrups.py`).
 6. If a location fails: where `#L` was cut to the average, add legs. Where
    `#L` already fills the width, first check the column strip width was
    not artificially reduced (as at a step-down); only then tighten the

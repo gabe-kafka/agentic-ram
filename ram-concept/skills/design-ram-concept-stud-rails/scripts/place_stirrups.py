@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Place user stirrup regions where the engineer marked them, by the office one-way shear rule.
 
-  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--spacing 6] [--mat 12] [--bar "#4"] [--dry]
+  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--spacing 6] [--mat 6] [--bar "#4"] [--replace] [--dry]
 
 For every PROGRAM transverse rebar region in <saved.cpt> whose midpoint lies inside one of the boxes (ft, with a
 1 ft margin): a USER region is added on the same line in the live API session, same span direction, bar --bar,
-open stirrups, spacing --spacing in, legs = that span's column strip width / --mat spacing (rounded), minimum 2.
+open stirrups, spacing --spacing in, legs = that span's column strip width / --mat (rounded), minimum 2. The office
+rule (engineer, 2026-10-06): legs at the same 6 in as the stirrups along the span, a 6 by 6 in grid of legs over
+the strip, so --mat defaults to 6. --replace deletes every existing user transverse region first.
 Then the model is saved to <out.cpt>. The program regions are left alone; the next calc regenerates them and
 anything that is still drawn inside a box means the user region is not enough.
 
@@ -89,9 +91,13 @@ def plan(model: Path, boxes, spacing_in, mat_in):
         along = "x" if abs(x1 - x0) >= abs(y1 - y0) else "y"
         found = strip_width(strips, mx, my, along)
         if found and found[2]["seg"] in beam_spans:
-            print(f"  skipped ({mx:5.1f},{my:5.1f}): on a beam's own strip; the beam design covers it")
-            continue
+            if found[0] <= found[1] / 2 + 0.5:                      # inside the beam's own strip
+                print(f"  skipped ({mx:5.1f},{my:5.1f}): on a beam's own strip; the beam design covers it")
+                continue
+            found = strip_width([s for s in strips if s["seg"] not in beam_spans], mx, my, along)
         width = found[1] if found else None
+        if width is None:                                           # no slab column strip here: the box's own width across the line
+            width = (hit[1] - hit[0]) if along == "y" else (hit[3] - hit[2])
         n = max(2, round(width / (mat_in / 12))) if width else 2
         span_set = spans.get(found[2]["seg"], "latitude" if sdir == 1 else "longitude") if found else ("latitude" if sdir == 1 else "longitude")
         rows.append(dict(x0=x0, y0=y0, x1=x1, y1=y1, mx=mx, my=my, along=along, length=math.hypot(x1 - x0, y1 - y0),
@@ -106,7 +112,8 @@ def main(argv=None):
     p.add_argument("out", type=Path)
     p.add_argument("--box", type=float, nargs=4, action="append", metavar=("X0", "X1", "Y0", "Y1"), required=True)
     p.add_argument("--spacing", type=float, default=6.0, help="stirrup spacing along the span, in (default 6)")
-    p.add_argument("--mat", type=float, default=12.0, help="mat bar spacing, in: one leg per mat bar (default 12)")
+    p.add_argument("--mat", type=float, default=6.0, help="leg spacing across the strip, in (default 6: a 6 by 6 grid)")
+    p.add_argument("--replace", action="store_true", help="delete the existing user transverse regions first")
     p.add_argument("--bar", default="#4")
     p.add_argument("--dry", action="store_true")
     p.add_argument("--port", type=int)
@@ -127,6 +134,12 @@ def main(argv=None):
     layer = model.cad_manager.rebar_layer
     bar = next(b for b in model.rebars.rebars if b.name == a.bar)
     before = sum(len(layer.transverse_rebar(DesignedBy.USER, s)) for s in SpanSet)
+    if a.replace:
+        for s in SpanSet:
+            for t in list(layer.transverse_rebar(DesignedBy.USER, s)):
+                t.delete()
+        print(f"deleted {before} user transverse regions")
+        before = 0
     for r in rows:
         t = layer.add_transverse_rebar(LineSegment2D(Point2D(r["x0"], r["y0"]), Point2D(r["x1"], r["y1"])))
         t.span_set = SpanSet.LATITUDE if r["span_set"] == "latitude" else SpanSet.LONGITUDE
