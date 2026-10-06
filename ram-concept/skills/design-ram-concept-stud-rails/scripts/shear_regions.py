@@ -17,8 +17,12 @@ joined into chains: one chain is one location. Then each chain gets a class:
 A support is something the chain's own line runs into: a column on the line, a wall or beam crossing it, or
 the end of a wall or beam lying along it. A wall or beam off to the side is not a support for that line.
 
-Read-only. Meant for a model whose design strips were set to full width (the office screening copy); on the
-real model it only describes what the program draws today. Heuristics for the engineer to judge from, not a
+Known limit (2636, 2026-10-06): on a full-width screening copy the program draws its regions at the middle of
+the wide strip, off the column lines, so the support search misses and such zones come out REQUIRED with "no
+support on its line". The by-zone count is too high there (41 against 22 by eye). Trust it on the real model
+(code-slab strips); on the screening copy treat "no support" zones as unsorted.
+
+Read-only. On the real model it describes what the program draws today. Heuristics for the engineer to judge from, not a
 design check. --pieces lists the single regions instead of chains.
 """
 from __future__ import annotations
