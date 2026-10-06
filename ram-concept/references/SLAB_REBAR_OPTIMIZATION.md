@@ -257,9 +257,9 @@ Then calc, fix the problem areas specifically, calc again.
   the status report, and a mat-size what-if (the same slab with the mat one
   size up: mat tons plus additional tons). The engineer offered this at the
   meeting as the useful thing to code.
-- Slab one-way shear legs: the reviewer said one leg per mat bar in the
-  strip width (10 ft strip, 10 legs). The engineer's rule in this repo is
-  legs at 6 in. Unsettled; ask before averaging legs.
+- Slab one-way shear legs: one leg per mat bar in the strip width (10 ft
+  strip, 10 legs), the reviewer's rule, confirmed by the engineer the same
+  afternoon. `place_stirrups.py --mat` defaults to 12.
 - Next office topics: punching (a better way than an assumed opening at
   every column) and one-way shear stirrups. A colleague's tip: export
   Concept's SSR table as the basis for the stud rail spreadsheet; it goes

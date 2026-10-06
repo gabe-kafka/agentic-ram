@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Place user stirrup regions where the engineer marked them, by the office one-way shear rule.
 
-  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--around-beam-columns R] [--spacing 6] [--mat 6] [--bar "#4"] [--replace] [--dry]
+  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--around-beam-columns R] [--spacing 6] [--mat 12] [--bar "#4"] [--replace] [--dry]
 
 For every PROGRAM transverse rebar region in <saved.cpt> whose midpoint lies inside one of the boxes (ft, with a
 1 ft margin): a USER region is added on the same line in the live API session, same span direction, bar --bar,
 open stirrups, spacing --spacing in, legs = that span's column strip width / --mat (rounded), minimum 2. The office
-rule (engineer, 2026-10-06): legs at the same 6 in as the stirrups along the span, a 6 by 6 in grid of legs over
-the strip, so --mat defaults to 6. --replace deletes every existing user transverse region first.
+rule (Ryan Darling, team meeting 2026-10-06, confirmed by the engineer): one leg per mat bar across the strip,
+so --mat is the mat bar spacing and defaults to 12 (a 10 ft strip gets 10 legs). The earlier 6 by 6 in grid
+(--mat 6) is superseded. --replace deletes every existing user transverse region first.
 
 --around-beam-columns R adds a box of half-size R ft around every column that sits on a beam (engineer's rule,
 2026-10-06: target beam columns in every direction). In every box, regions that end within about d of a support
@@ -146,7 +147,7 @@ def main(argv=None):
     p.add_argument("--box", type=float, nargs=4, action="append", metavar=("X0", "X1", "Y0", "Y1"))
     p.add_argument("--around-beam-columns", type=float, metavar="R", help="also a box of half-size R ft around every column on a beam")
     p.add_argument("--spacing", type=float, default=6.0, help="stirrup spacing along the span, in (default 6)")
-    p.add_argument("--mat", type=float, default=6.0, help="leg spacing across the strip, in (default 6: a 6 by 6 grid)")
+    p.add_argument("--mat", type=float, default=12.0, help="leg spacing across the strip = mat bar spacing, in (default 12: one leg per mat bar)")
     p.add_argument("--replace", action="store_true", help="delete the existing user transverse regions first")
     p.add_argument("--bar", default="#4")
     p.add_argument("--dry", action="store_true")

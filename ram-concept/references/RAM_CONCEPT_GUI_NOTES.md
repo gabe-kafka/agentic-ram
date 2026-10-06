@@ -315,14 +315,13 @@ Two models, to end up with as few stirrups as possible:
      along heavily loaded walls, and rarely at a column without stud rails.
 5. Save and close the copy. In the real model (strips on `code slab`
    width), at each required location, use the column strip. Legs across
-   the width go at the same 6 in as the stirrups along the span: a 6 by
-   6 in grid of legs over the strip, so the number of legs (`#L`) is the
-   strip width in feet times two (engineer's rule, 2026-10-06; the
-   written process says "at the mat bar spacing", which the office
-   reads as this grid). At the team meeting that afternoon the reviewer
-   said one leg per mat bar in the strip width (a 10 ft strip gets 10
-   legs), half the grid. Which rule holds is unsettled; ask the engineer
-   before averaging legs. Find the average `#L` through the slab and, by
+   the width: **one leg per mat bar** in the strip (the written process's
+   "at the mat bar spacing"; the reviewer at the 2026-10-06 team meeting:
+   a 10 ft strip gets 10 legs; the engineer confirmed that afternoon). With
+   a 12 in mat the number of legs (`#L`) is the strip width in feet. The
+   ties hook the mat bars, and it meets the stirrup across-the-width
+   provision. (A 6 by 6 in grid, twice the legs, was used on 2636 for a
+   few hours that day and is superseded.) Find the average `#L` through the slab and, by
    judgement, reduce the regions to it. Along the span start at 6 in on
    centre. The program's own answer is two legs at a tight spacing;
    override it (`CS Legs in Shear Reinforcement` on the span's `Column

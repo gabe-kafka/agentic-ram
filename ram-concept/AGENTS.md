@@ -66,7 +66,8 @@ Standing rules from the engineer, which apply in every session:
 - After a beam is added, Concept may still show a punching fail; office uses a
   separate final punching check.
 - One-way shear: the office method screens on a separately saved copy with
-  every design strip at full width, then puts stirrups in the real model.
+  every design strip at full width, then puts stirrups in the real model:
+  6 in along the span, one leg per mat bar across the column strip.
   See `references/RAM_CONCEPT_GUI_NOTES.md`, "One-way shear in a two-way
   slab". Never set the real model's strips to full width.
 - With the engineer at the PC, or a second Concept open, do not send real
