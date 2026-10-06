@@ -3,9 +3,14 @@
 
   python stud_openings.py list  <saved.cpt>
   python stud_openings.py add   <saved.cpt> <out.cpt> --at X Y [--at X Y ...] [--face south|north] [--toward west|east]
+  python stud_openings.py move  <saved.cpt> <out.cpt> --back FT --at X Y [--at X Y ...]
   python stud_openings.py show  <saved.cpt> <out.png> --at X Y
-  python stud_openings.py calc  <any.cpt> <out.cpt>            mesh, calc all, save
+  python stud_openings.py calc  <any.cpt> <out.cpt> [--no-mesh]  mesh, calc all, save
   python stud_openings.py compare <before.cpt> <after.cpt> [--at X Y ...]
+
+`move` takes the assumed opening at each named column straight back from the face by FT. The saved
+file must be the model that is open in the session; it is read for the columns and their openings.
+`calc --no-mesh` is for changes that leave the mesh alone, such as a search radius.
 
 Face rule: the long face. At a column with a slab edge or opening close on one long side, the
 inside face (the long face away from it). Otherwise the south (or west) face.
@@ -123,7 +128,7 @@ def show(path, out, at, reach=6.0):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("command", choices=["list", "add", "show", "calc", "compare"])
+    p.add_argument("command", choices=["list", "add", "move", "show", "calc", "compare"])
     p.add_argument("model", type=Path)
     p.add_argument("out", nargs="?", type=Path)
     p.add_argument("--at", type=float, nargs=2, action="append", metavar=("X", "Y"))
@@ -131,6 +136,8 @@ def main():
     p.add_argument("--toward", choices=["west", "east", "south", "north"], default="west")
     p.add_argument("--all", action="store_true", help="add: every column with stud rails in <saved.cpt>")
     p.add_argument("--existing", type=Path, help="add --all: skip columns that already have an opening in this saved file")
+    p.add_argument("--back", type=float, help="move: distance (ft) to take the opening back from the column face")
+    p.add_argument("--no-mesh", action="store_true", help="calc: keep the mesh; calc all and save")
     p.add_argument("--port", type=int)
     a = p.parse_args()
     cols = columns(a.model)
@@ -174,7 +181,8 @@ def main():
         import simplify_rebar as sr
         model = sr.live_model(a.port)
         start = time.time()
-        model._command("[GENERATE_MESH]", 1800)
+        if not a.no_mesh:
+            model._command("[GENERATE_MESH]", 1800)
         meshed = time.time() - start
         model.calc_all(timeout_seconds=3600)
         model.save_file(str(a.out))
@@ -186,6 +194,29 @@ def main():
     from ram_concept.polygon_2D import Polygon2D
     layer = model.cad_manager.structure_layer
     before = len(layer.slab_openings)
+    if a.command == "move":
+        saved = [[(x / FT, y / FT) for x, y in pts(mp)] for (mp,) in cr.connect(a.model).execute("select MultiPoint from SlabOpening")]
+        saved = [q for q in saved if len(q) == 4 and max(v[0] for v in q) - min(v[0] for v in q) < 1.1 * SIZE / 12]
+        mid = lambda q: (sum(v[0] for v in q) / len(q), sum(v[1] for v in q) / len(q))
+        live = [(o, o.location.points) for o in layer.slab_openings]     # read every location before anything is deleted
+        live = [(o, mid([(v.x, v.y) for v in q])) for o, q in live if len(q) == 4]
+        moves = []
+        for x, y in a.at:
+            cx, cy, b, d, _ = col = nearest(cols, x, y)
+            ox, oy = mid(min(saved, key=lambda q: math.hypot(mid(q)[0] - cx, mid(q)[1] - cy)))
+            hit = [o for o, (lx, ly) in live if math.hypot(lx - ox, ly - oy) < 0.05]
+            if math.hypot(ox - cx, oy - cy) > 3 or len(hit) != 1:
+                raise SystemExit(f"column ({cx:.1f},{cy:.1f}): need one assumed opening, saved and live; nothing changed")
+            dx, dy = (0.0, math.copysign(a.back, oy - cy)) if b >= d else (math.copysign(a.back, ox - cx), 0.0)
+            s = SIZE / 24
+            moves.append((hit[0], [(ox + dx + i * s, oy + dy + j * s) for i, j in ((-1, -1), (1, -1), (1, 1), (-1, 1))]))
+            print(f"column ({cx:.2f},{cy:.2f}): opening centre ({ox:.3f},{oy:.3f}) -> ({ox + dx:.3f},{oy + dy:.3f})")
+        for old, poly in moves:
+            old.delete()
+            layer.add_slab_opening(Polygon2D([Point2D(px, py) for px, py in poly]))
+        model.save_file(str(a.out))
+        print(f"openings {before} -> {len(layer.slab_openings)}; saved {a.out}")
+        return
     mesh = cr.Mesh(a.model)
     if a.all:
         done = []

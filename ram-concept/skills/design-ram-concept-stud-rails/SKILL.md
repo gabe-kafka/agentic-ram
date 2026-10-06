@@ -11,9 +11,10 @@ of it. Proven on one model (2636), as far as the status table.
 
 ```text
 settings by hand -> stud_openings.py add --all -> calc
-  -> export the Punching Check Analysis table -> punch_status.py
-  -> cutoff errors: punch-radius.ps1 (10, then 12 ft) -> calc -> status again
-  -> stress failures: engineer (move the opening, or a beam)
+  -> punch-export.ps1 (the Punching Check Analysis table) -> punch_status.py
+  -> cutoff errors: punch-radius.ps1 (10, then 12 ft) -> calc --no-mesh -> status again
+  -> stress failures, and errors left at 12 ft: stud_openings.py move --back 1 into a TRIAL file
+     -> calc -> status -> the engineer accepts or not, against the floor plan
   -> schedule and rails to User: by hand (not built)
 ```
 
@@ -23,8 +24,11 @@ settings by hand -> stud_openings.py add --all -> calc
 |---|---|---|
 | List stud rail columns and their rails | `stud_openings.py list <saved.cpt>` | read-only |
 | Add the assumed 6 in x 6 in opening | `stud_openings.py add <saved.cpt> <out.cpt> --at X Y` or `--all --existing <cpt>` | openings counted in the saved file |
-| Mesh, calc, save | `stud_openings.py calc <any.cpt> <out.cpt>` | API; about 4 minutes on 2636 |
+| Move an assumed opening back from the face | `stud_openings.py move <saved.cpt> <trial.cpt> --back 1 --at X Y` | openings compared in the saved files. The command was run on 2636 as a scratch script; this copy of it is compile-checked only |
+| Mesh, calc, save | `stud_openings.py calc <any.cpt> <out.cpt>` | API; about 7 minutes on 2636 at a 2 ft mesh |
+| Calc, save (radius changes) | `stud_openings.py calc <any.cpt> <out.cpt> --no-mesh` | about 5 minutes on 2636 |
 | Before and after rails | `stud_openings.py compare <before.cpt> <after.cpt>` | read-only |
+| Export the status table | `punch-export.ps1 -Out <export.txt>` | file written; positions are for the 2636 tree, check them first. Run on 2636 as a scratch script; this copy is parse-checked only |
 | Status of every check | `punch_status.py <model.cpt> <export.txt>` | from Concept's own table |
 | Set a check's search radius | `punch-radius.ps1 -Points "x,y;..." -Radius 10` | `-ReadOnly` reads it back; then confirm from a saved file |
 | Plan of checks and openings | `punch_plan.py <model.cpt> <out.png>` | openings drawn 5x so they show |
@@ -52,8 +56,20 @@ radius changes go through the GUI, and deleting a check or setting rails to
   they were failing on stress (ratio above 2), and 15 real cutoff errors
   went unnoticed until the table was exported.
 - A check with no row in the analysis table is in cutoff-section error.
-- Unreinforced stress ratio above about 2 with stud rail design on: no
-  rails at any radius. Do not raise the radius; it is the engineer's call.
+- Re-export the table after any change to the mesh, the openings or the
+  checks. On 2636 the list of cutoff errors went from 15 to 16 and changed
+  members after a mesh change.
+- Unreinforced stress ratio above about 2.2 with stud rail design on: no
+  rails at any radius. Do not raise the radius. On 2636 a check at 2.14
+  passed with rails and checks at 2.23 to 2.33 failed.
+- On 2636, 10 ft cleared 15 of 16 cutoff errors; none needed 12 ft. The one
+  left sat beside a stair opening and stayed in error at 12 ft.
+- Moving the assumed opening 1 ft back from the face cleared all four
+  stress failures (ratio down by about 0.15) and that last cutoff error.
+  This is a design assumption, not cleanup: it only stands if the floor
+  plan above shows no plumbing at the column, and that is the engineer's
+  call. Keep it in a trial file, out of the production model, until the
+  engineer accepts it.
 - Delete the checks at columns on beams before judging anything.
 - Regenerating the mesh after adding openings moves the rebar results a
   little. Recheck the bars afterwards.
@@ -68,11 +84,15 @@ radius changes go through the GUI, and deleting a check or setting rails to
 1. API session on a copy of the model; Scripting Server running.
 2. `stud_openings.py list`, then `add` on one column and check it on plan,
    then `add --all --existing <that file>`, then `calc`.
-3. Pause the Scripting Server. In Concept open `Design Status > Tables >
-   Punching Check Analysis`, press `Export...`, save beside the model.
+3. Pause the Scripting Server. `punch-export.ps1`, or by hand: `Design
+   Status > Tables > Punching Check Analysis`, `Export...`, save beside the
+   model.
 4. `punch_status.py`. For the cutoff errors, open `Design Strip > Punching
-   Checks Plan` and run `punch-radius.ps1`; resume, `calc`, export, status.
-5. Sync the result into the production model before handing back.
+   Checks Plan` and run `punch-radius.ps1`; resume, `calc --no-mesh`,
+   export, status.
+5. Sync the result into the production model.
+6. What is left: `move --back 1` into a trial file, `calc`, export, status.
+   Report the trial; sync it only when the engineer accepts it.
 
 ## Not built
 
@@ -80,10 +100,12 @@ radius changes go through the GUI, and deleting a check or setting rails to
   rail spreadsheet and grouping by rail length (1 to 1.5 ft steps), then
   stud spacing.
 - Setting rail sets to `User` to match the schedule.
-- Deleting checks, and moving an opening back from the face.
+- Deleting checks.
+- Checking the floor plan above for plumbing at a column.
 - Tests. Nothing here is covered by `ram-concept/tests` yet.
 
 ## Bundled scripts
 
 - `scripts/stud_openings.py`, `scripts/punch_status.py`,
-  `scripts/punch_plan.py` (needs matplotlib), `scripts/punch-radius.ps1`.
+  `scripts/punch_plan.py` (needs matplotlib), `scripts/punch-radius.ps1`,
+  `scripts/punch-export.ps1`.
