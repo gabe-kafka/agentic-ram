@@ -5,7 +5,8 @@
 # model, and nobody else on the mouse or keyboard. -Tree and -Export are window positions of the tree item and
 # the Export... button; the defaults are for the tree with Design Status and its Tables expanded and the
 # Design Strip, Reinforcement and prestressing folders above it as on 2636. Check them on a screenshot first.
-param([Parameter(Mandatory = $true)][string]$Out, [string]$Tree = '210,583', [string]$Export = '1130,165')
+# With more than one Concept open (say, one launched from RAM Manager) it acts only on the API session, or on -ProcId.
+param([Parameter(Mandatory = $true)][string]$Out, [string]$Tree = '210,583', [string]$Export = '1130,165', [int]$ProcId = 0)
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -32,7 +33,12 @@ public static class PX {
 '@
 [PX]::SetProcessDPIAware() | Out-Null
 if (Test-Path $Out) { throw "$Out exists" }
-$procId = (Get-Process Concept | Select-Object -First 1).Id
+if (-not $ProcId) {
+    $api = @(Get-CimInstance Win32_Process -Filter "Name='Concept.exe'" | Where-Object { $_.CommandLine -match '-apiServer' })
+    if ($api.Count -ne 1) { throw "need exactly one API Concept session, found $($api.Count); pass -ProcId" }
+    $ProcId = $api[0].ProcessId
+}
+$procId = [uint32]$ProcId
 $main = [PX]::Find($procId, 'RAM Concept') -split '\|'
 if ($main.Count -lt 3) { throw 'RAM Concept main window not found' }
 $OX = [int]$main[1]; $OY = [int]$main[2]

@@ -4,7 +4,8 @@
 # Needs an attached display, Concept 2025 maximized at 100% scaling, the Scripting Server paused, and
 # nobody else on the mouse or keyboard. The prompt test reads the status bar: the command-line edit box
 # starts further right while the prompt says 'Enter opposite corner point:'.
-param([Parameter(Mandatory = $true)][string]$Points, [double]$Radius = 0, [double]$Half = 0.2, [switch]$ReadOnly)
+# With more than one Concept open (say, one launched from RAM Manager) it acts only on the API session, or on -ProcId.
+param([Parameter(Mandatory = $true)][string]$Points, [double]$Radius = 0, [double]$Half = 0.2, [switch]$ReadOnly, [int]$ProcId = 0)
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -28,7 +29,12 @@ public static class PS1 {
 }
 '@
 [PS1]::SetProcessDPIAware() | Out-Null
-$procId = (Get-Process Concept | Select-Object -First 1).Id
+if (-not $ProcId) {
+    $api = @(Get-CimInstance Win32_Process -Filter "Name='Concept.exe'" | Where-Object { $_.CommandLine -match '-apiServer' })
+    if ($api.Count -ne 1) { throw "need exactly one API Concept session, found $($api.Count); pass -ProcId" }
+    $ProcId = $api[0].ProcessId
+}
+$procId = [uint32]$ProcId
 $main = [PS1]::Find($procId, 'RAM Concept') -split '\|'
 if ($main.Count -lt 6) { throw 'RAM Concept main window not found' }
 [PS1]::keybd_event(0x12,0,0,[UIntPtr]::Zero); [PS1]::keybd_event(0x12,0,2,[UIntPtr]::Zero)

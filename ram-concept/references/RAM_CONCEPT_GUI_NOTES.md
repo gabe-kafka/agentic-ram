@@ -178,12 +178,22 @@ columns):
   (`Punching Shear Design Notes > Step 5` and `SSR Maximum Transverse
   Spacing Checks`) says initial rails are placed to meet the 2d transverse
   spacing at the face and that an opening makes a dead sector from the
-  column centre; the method is called proprietary. Inferred, not
-  documented: at the face the sector is about 10 in wide at the first studs
-  and takes in the corner rail on that side, so a live rail is added beside
-  it; 1 ft back the sector is about 4 in wide and misses both corner rails.
-  Expect a `User` set with two rails on that face to need checking, not to
-  pass by default.
+  column centre; the method is called proprietary.
+- It is contact with the face that triggers the extra rail. Moving the 46
+  openings 1 in off the face (engineer's instruction, 2026-10-06) took all
+  35 columns back to 8 rails, two on that face. A first guess that the dead
+  sector swallows the corner rail was wrong: the sector is nearly the same
+  at 1 in. The opening is an assumption, so a 1 in gap costs nothing and
+  avoids a lopsided 3-and-2 rail set.
+- Fewer rails run longer: after that move 7 checks that had passed at an
+  8 ft radius went into cutoff-section error. Expect to raise their radius
+  to 10 ft again.
+- With a second Concept open (one launched from RAM Manager), GUI scripts
+  must be pointed at the API session's process, and real keystrokes
+  (`SendKeys`) and mouse clicks collide with the engineer's own typing.
+  While the engineer is at the PC, drive Concept with posted window
+  messages instead: a posted click on `Export...`, `WM_CHAR` into the
+  dialog's file name box, `BM_CLICK` on Save.
 
 More from the reviewer:
 
