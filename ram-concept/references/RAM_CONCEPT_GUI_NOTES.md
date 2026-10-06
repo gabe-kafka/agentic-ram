@@ -171,6 +171,19 @@ columns):
   model when the engineer accepts it.
 - The result tables go stale with the model. Export again after any change
   to the mesh, the openings, the checks or a radius.
+- An opening touching the face adds a rail on that face, at mid-face beside
+  the opening: all 35 two-rails-per-face columns went from 8 rails to 9.
+  It is not load: a column at ratio 1.20 with studs at 9.25 in got it, and
+  columns at 2.18 with the opening 1 ft back did not. Concept's help
+  (`Punching Shear Design Notes > Step 5` and `SSR Maximum Transverse
+  Spacing Checks`) says initial rails are placed to meet the 2d transverse
+  spacing at the face and that an opening makes a dead sector from the
+  column centre; the method is called proprietary. Inferred, not
+  documented: at the face the sector is about 10 in wide at the first studs
+  and takes in the corner rail on that side, so a live rail is added beside
+  it; 1 ft back the sector is about 4 in wide and misses both corner rails.
+  Expect a `User` set with two rails on that face to need checking, not to
+  pass by default.
 
 More from the reviewer:
 
