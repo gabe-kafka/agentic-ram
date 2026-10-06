@@ -71,6 +71,45 @@ Saved checkpoints store each plan's filter in `PlanData` /
 `FilterKeyShowFilter.FilterString`; `ConcentratedRebar.BarFace` is 1 = top,
 2 = bottom.
 
+### Design strips: segmenting and boundaries
+
+From a working session with a senior reviewer, 2026-10-06.
+
+- Segmenting a span at a slab transition shrinks its column strip, because
+  column strip width follows the segment length. Draw column strip
+  boundaries and set the column strip to manual to hold the real width.
+  Leave the span width automatic.
+- The outer (middle strip) extents do not change when a span is segmented.
+  Move middle strip boundaries only where the strip crosses between two
+  slab depths.
+- Boundaries only truncate a strip. They widen it only when the strip is
+  set to manual.
+- Where a strip tapers across a step, run the boundary about 1 ft past the
+  region so the taper sits in one slab depth. Keep the boundaries.
+- Copy a span segment by selecting it at a node, then the move tool with
+  Shift held. Check for a duplicate stacked on top afterwards: click one,
+  delete, and see whether one remains.
+- Segment tool: do not start the cut on a node where spans already meet or
+  are already segmented. The program deletes the spans. Start elsewhere.
+- Full width on a span overrides every boundary on it.
+
+### Checking bars against demand
+
+- Demand and capacity plots: `Layers > Rule Set Designs > Strength Design`.
+  Right-click, `Visible Objects`, reinforcement tab, to show bar extents.
+  The capacity plotted is for the whole strip, not per foot.
+- User bars alone: `Criteria > Calc Options`, general tab, last checkbox,
+  `Check capacity of user reinforcement without designing`, then calc. No
+  program bars are generated. Uncheck and calc again to get them back.
+- Change a program bar: `Selection Properties`, designed by `User`; then
+  quantity by spacing, and `Anchored` at an end as needed.
+- Make a bar a round length: stretch tool on its end, then type a relative
+  move such as `r0,1.9`.
+- Copy bars with the move tool's copy and stretch into place. Plain copy
+  and paste lands on top of the original.
+- `Calc Partial` keeps its checkbox settings until Concept is closed. No
+  mesh regeneration is needed after strip or bar changes.
+
 ## Line loads
 
 The Warnings list uses one-based load numbers. Saved checkpoint indices are
@@ -140,6 +179,11 @@ holds the checks and the generated rails; it does not hold pass or fail.
   text with no byte-order mark.
 - `Layers > Design Status > Punching Shear Status Plan` shows the same on
   plan: green OK, red failed or in error.
+
+For one failing check, the punching audit tool (right-hand toolbar; click
+the column) opens the audit report. Its last lines give the reason, for
+example "No cutoff critical sections were found at punching check
+radius". The report's layout changes between versions.
 
 Reading the status:
 
@@ -217,6 +261,59 @@ More from the reviewer:
 and generated rail geometry from a checkpoint without opening Concept.
 Draft tools for the openings, radii and status are in
 `skills/design-ram-concept-stud-rails`.
+
+## One-way shear in a two-way slab (office path)
+
+From a senior reviewer's walkthrough, 2026-10-06. Not yet run by this
+repository on any model. Code statements are the reviewer's; check ACI
+318-19 before citing them.
+
+Why it is done this way: ACI 318-19 lowered one-way concrete shear capacity
+and added a limit on stirrup leg spacing across the width of a member (d, or
+d/2 at high steel shear). The code gives no detailing rules for one-way
+shear stirrups in a slab, so the office treats the slab like a beam: one leg
+at each mat bar across the width, because a tie needs a top and a bottom bar
+to hook. Concept does not check the number of legs.
+
+Two models, to end up with as few stirrups as possible:
+
+1. Save a copy of the model beside it, named like `<model>_full width`.
+2. In the copy, select every design strip and set it to full width (it
+   overrides any strip boundaries). Beam strips stay beams. Regenerate the
+   strips and `Calc All`. Full width averages the shear over column and
+   middle strip, which textbooks allow for one-way shear.
+3. `Layers > Reinforcement > Shear Reinforcement Plan`; take a screenshot.
+   The Design Status plan shows the same bars with more clutter.
+4. Sort what the copy shows:
+   - at a column that has stud rails: set aside, checked through the rails
+     (below);
+   - stirrups over a region shorter than about d from the support face:
+     drop, because shear is checked at d from the face (18 in of stirrups
+     in a 16 in slab drops; 2 ft and more stays);
+   - the rest are required. Expect them at beam ends, at corners of walls,
+     along heavily loaded walls, and rarely at a column without stud rails.
+5. Close the copy. In the real model (strips on `code slab` width), at each
+   required location, use the column strip: group similar strip widths
+   down to one value, set the stirrups to 6 in on centre along the span,
+   and set the number of legs by hand to the mat bar spacing across that
+   width. The program's own answer is two legs at a tight spacing. Rerun
+   and tighten only where it still fails.
+6. Shear bars the real model still shows in middle strips are ignored,
+   unless they run along a long wall.
+
+Stud rail columns, checked for one-way shear through the rails:
+
+1. `Criteria > Materials`: add a reinforcing bar, for example `SSR one-way`,
+   with the area of the stud (3/4 in stud = a #6 bar) and the stud's yield
+   (50 ksi). The custom bar exists only to carry the lower yield.
+2. On the column strip segments at those columns, set `CS Shear Bar` to it.
+3. Rerun. The program generates two legs, the usual two rails on a face.
+   Show the stud rail descriptions on the same plan. Where the rails' stud
+   spacing is tighter than the stirrup spacing generated, the rails are
+   enough. Check the governing span direction; the other faces follow.
+
+Do the stirrup zones first. The reviewer has rarely had to change stud
+rails for one-way shear.
 
 ## Beam reinforcement (office path)
 

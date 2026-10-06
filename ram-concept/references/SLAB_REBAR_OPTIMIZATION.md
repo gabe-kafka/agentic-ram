@@ -162,6 +162,10 @@ rules outrank what the tools do today; the Gaps list says what is not built.
 - Bottom bars merge wherever needed. Top bars are merged with care, to stay
   out of middle strips.
 - Additional bottom bars are needed only at column strips in most cases.
+  That means one group per column strip, not one group across several
+  (clarified 2026-10-06).
+- Bar lengths are kept to similar round values (a bar was stretched to
+  exactly 25 ft).
 - Reinforce locally at corners and over walls, not one bar segment across a
   whole section.
 - A callout is normally at most **30 ft** long. Do not stretch one past
@@ -182,6 +186,8 @@ rules outrank what the tools do today; the Gaps list says what is not built.
 
 - The end product is a design run with program reinforcement switched off:
   the check that the user bars alone pass. That removes every program bar.
+  The setting is `Criteria > Calc Options`, `Check capacity of user
+  reinforcement without designing` (named 2026-10-06).
 - Until then small obvious ones are ignored. One-bar conditions: note the
   location and check demand without program bars; the slab may be 1% over.
 - The reviewer's own method: remove bars that look excessive, rerun, and see
@@ -196,6 +202,10 @@ bars in one layer by beam width; see `RAM_CONCEPT_GUI_NOTES.md`).
   #9) and add a second layer if needed. Extend to the beam ends, `Anchored`.
 - Beam bars on `Bottom Cover` 2 in, not `Absolute`.
 - Stirrups: #4 at 3 in to start; end, middle, end zones later.
+
+**One-way shear** has its own office method (two models, stirrups only
+where a full-width copy still needs them; see `RAM_CONCEPT_GUI_NOTES.md`).
+Nothing here automates it.
 
 **Punching.**
 

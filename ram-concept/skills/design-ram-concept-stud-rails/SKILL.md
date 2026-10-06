@@ -43,9 +43,16 @@ radius changes go through the GUI, and deleting a check or setting rails to
 
 ## The opening rule
 
-- 6 in x 6 in, touching the long face of the column, its centre 4.5 in off
-  the middle of that face. That clears a rail at mid-face and the corner
-  rails. Confirmed by the engineer and the senior reviewer on 2636.
+- 6 in x 6 in, at the long face of the column and **1 in clear of it**, its
+  centre 4.5 in off the middle of that face. The position along the face
+  was confirmed by the engineer and the senior reviewer on 2636.
+- Why 1 in clear (engineer, 2026-10-06): an opening touching the face makes
+  Concept add a third rail on that face (2636: 35 columns went from 8 rails
+  to 9, and back to 8 at 1 in). The opening is an assumption, so the gap
+  costs nothing. `add` draws it with the gap; the script was changed after
+  the 2636 run and `add` has not been rerun since.
+- Dropping that rail makes the others run longer: expect a few checks back
+  in cutoff-section error at 8 ft, cured at 10 ft.
 - One per column that generates stud rails. Columns that pass without rails
   get none.
 - **Edge columns: the inside face.** `--face auto` (the default) picks the

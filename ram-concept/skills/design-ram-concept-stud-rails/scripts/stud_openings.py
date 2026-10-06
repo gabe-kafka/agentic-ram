@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assumed penetration at stud rail columns: one 6 in x 6 in opening at the long face, off centre.
+"""Assumed penetration at stud rail columns: one 6 in x 6 in opening 1 in off the long face, off centre.
 
   python stud_openings.py list  <saved.cpt>
   python stud_openings.py add   <saved.cpt> <out.cpt> --at X Y [--at X Y ...] [--face south|north] [--toward west|east]
@@ -31,6 +31,7 @@ import cpt_reader as cr          # noqa: E402
 FT, IN = 3048.0, 254.0
 SIZE = 6.0            # in, square
 OFF_CENTRE = 4.5      # in, opening centre from the middle of the face
+GAP = 1.0             # in, clear of the column face; an opening touching the face makes Concept add a rail on it
 
 
 def pts(text):
@@ -65,10 +66,10 @@ def opening(col, face="south", toward="west"):
     sign_face = -1 if face in ("south", "west") else 1
     sign_shift = -1 if toward in ("west", "south") else 1
     if b >= d:                                   # long faces are the north and south faces
-        cx, y0 = x + sign_shift * o, y + sign_face * d / 24
+        cx, y0 = x + sign_shift * o, y + sign_face * (d / 24 + GAP / 12)
         y1 = y0 + sign_face * s
         return [(cx - s / 2, min(y0, y1)), (cx + s / 2, min(y0, y1)), (cx + s / 2, max(y0, y1)), (cx - s / 2, max(y0, y1))]
-    cy, x0 = y + sign_shift * o, x + sign_face * b / 24   # long faces are the east and west faces
+    cy, x0 = y + sign_shift * o, x + sign_face * (b / 24 + GAP / 12)   # long faces are the east and west faces
     x1 = x0 + sign_face * s
     return [(min(x0, x1), cy - s / 2), (max(x0, x1), cy - s / 2), (max(x0, x1), cy + s / 2), (min(x0, x1), cy + s / 2)]
 

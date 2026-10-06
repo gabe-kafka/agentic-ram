@@ -60,7 +60,13 @@ Standing rules from the engineer, which apply in every session:
   edge first.
 - After a beam is added, Concept may still show a punching fail; office uses a
   separate final punching check.
-- Temporary one-way shear: user bars, full-width strips, do not save.
+- One-way shear: the office method screens on a separately saved copy with
+  every design strip at full width, then puts stirrups in the real model.
+  See `references/RAM_CONCEPT_GUI_NOTES.md`, "One-way shear in a two-way
+  slab". Never set the real model's strips to full width.
+- With the engineer at the PC, or a second Concept open, do not send real
+  keystrokes or mouse clicks; use window messages addressed to the API
+  session's own windows.
 - Warnings list line-load numbers are one-based; saved indices are zero-based.
 
 ## Live API attach
