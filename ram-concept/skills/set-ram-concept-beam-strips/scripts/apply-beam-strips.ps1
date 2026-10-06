@@ -11,8 +11,14 @@ param(
     [Parameter(Mandatory = $true)][string]$Points,
     [ValidateSet('T', 'L')][string]$Kind = 'T',
     [string]$TopBar = '#9', [string]$BottomBar = '#7',
-    [double]$TopCover = 2, [double]$BottomCover = 2
+    [double]$TopCover = 2, [double]$BottomCover = 2,
+    [int]$ProcId = 0, [int]$RowY = 23, [int]$OneStartMax = 457
 )
+# -ProcId: the Concept process to drive (default: the one started with -apiServer, else the only one).
+# -RowY / -OneStartMax: the command line is found by scanning the status bar row RowY px above the window's
+# bottom edge for the white edit box; it starts about 35 px further right while the prompt reads "Enter
+# opposite corner point:", so a start at or left of OneStartMax means "Enter one corner point:". Main monitor
+# on the 2636 PC: 440 or 475 (OneStartMax 457); the upper monitor: 345 or 380 (OneStartMax 362).
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -35,20 +41,34 @@ public static class BeamStrip {
 }
 '@
 [BeamStrip]::SetProcessDPIAware() | Out-Null
-$procId = (Get-Process Concept | Select-Object -First 1).Id
+if (-not $ProcId) {
+    $procs = @(Get-CimInstance Win32_Process -Filter "Name='Concept.exe'")
+    $api = @($procs | Where-Object { $_.CommandLine -match '-apiServer' })
+    if ($api.Count -eq 1) { $ProcId = $api[0].ProcessId } elseif ($procs.Count -eq 1) { $ProcId = $procs[0].ProcessId }
+    else { throw "found $($procs.Count) Concept processes, $($api.Count) with the API; pass -ProcId" }
+}
+$procId = [uint32]$ProcId
 $main = [BeamStrip]::Find($procId, 'RAM Concept') -split '\|'
 if ($main.Count -lt 6) { throw 'RAM Concept main window not found' }
 $OX = [int]$main[2]; $OY = [int]$main[3]; $H = [int]$main[5] - $OY
 
 # Calibration (Concept 2025, maximized, 100% scaling): offsets from the main window's top-left corner.
 $EditMenu = @(60, 43); $SelectionProperties = @(133, 250)
-$CommandLine = @(440, ($H - 21)); $PromptPixel = @(365, ($H - 28))
+$RowAbs = $OY + $H - $RowY
 
 function Keys($k) { [System.Windows.Forms.SendKeys]::SendWait($k); Start-Sleep -Milliseconds 300 }
-function Red($x, $y) { $b = New-Object Drawing.Bitmap 1, 1; $g = [Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($x, $y, 0, 0, $b.Size); $r = $b.GetPixel(0, 0).R; $g.Dispose(); $b.Dispose(); $r }
-# The command-line edit box is white at this pixel only while the prompt reads "Enter one corner point:".
-function Prompt { if ((Red ($OX + $PromptPixel[0]) ($OY + $PromptPixel[1])) -eq 255) { 'one' } else { 'opposite' } }
-function CmdLine { [BeamStrip]::Click($OX + $CommandLine[0], $OY + $CommandLine[1]); Start-Sleep -Milliseconds 350 }
+function BoxStart {
+    # x (window offset) where the white command-line edit box starts in the status bar row, or -1
+    $b = New-Object Drawing.Bitmap 700, 1; $g = [Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($OX + 200, $RowAbs, 0, 0, $b.Size); $g.Dispose()
+    $start = -1; $run = 0                                   # the first white run at least 20 px wide (panel separators are 1 px)
+    for ($x = 0; $x -lt 700; $x++) {
+        $c = $b.GetPixel($x, 0)
+        if ($c.R -ge 250 -and $c.G -ge 250 -and $c.B -ge 250) { $run++; if ($run -ge 20) { $start = 200 + $x - $run + 1; break } } else { $run = 0 }
+    }
+    $b.Dispose(); $start
+}
+function Prompt { $s = BoxStart; if ($s -lt 0) { 'none' } elseif ($s -le $OneStartMax) { 'one' } else { 'opposite' } }
+function CmdLine { $s = BoxStart; if ($s -lt 0) { throw 'no command line box in the status bar; is a plan active?' }; [BeamStrip]::Click($OX + $s + 40, $RowAbs); Start-Sleep -Milliseconds 350 }
 function SelectAt($x, $y) {
     foreach ($attempt in 1..3) {
         CmdLine
