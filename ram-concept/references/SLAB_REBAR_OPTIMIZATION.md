@@ -352,9 +352,10 @@ permitted.
    bars.
 8. **Exterior wall strips.** The bottom skill says to settle strips drawn
    along walls before simplifying; it must not suggest deleting them.
-9. **Stud rails.** Draft tools only (`skills/design-ram-concept-stud-rails`):
-   openings by API, radius by GUI, status from the exported table. Grouping
-   into a schedule and setting rails to `User` are not built.
+9. **Two-way punching (stud rails).** `skills/design-ram-concept-stud-rails`
+   took 2636 to all punching checks passing: openings by API, radius and
+   table export by GUI, status from the exported table. Grouping into a
+   schedule and setting rails to `User` are not built; nothing is tested.
 10. **Transition skill**: `transition_check.py` works and its verdicts are
     wired into both tools, but there is no `SKILL.md` and the yellow notch
     bars still show in Concept.

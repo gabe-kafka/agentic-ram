@@ -1,13 +1,17 @@
 ---
 name: design-ram-concept-stud-rails
-description: Draft workflow for two-way (punching) shear stud rails in a RAM Concept slab - assumed 6 in penetration at each stud rail column, search radius changes, pass/fail status from Concept's own table. Use when a user asks about stud rails, SSR, punching checks, punching openings, cutoff section errors or the search radius. Not finished - grouping into a schedule and setting rails to User are not built.
+description: Design a RAM Concept slab for two-way punching shear with stud rails (also called shear studs, shear rails or SSR) - assumed 6 in penetration at each stud rail column, pass/fail status from Concept's own table, search radius for cutoff-section errors, moving the assumed opening back for stress failures, until every punching check passes. Use when a user asks to design for two-way punching or two-way shear, or about shear studs, shear rails, stud rails, SSR, punching checks, punching openings, cutoff section errors or the search radius. Grouping the rails into a schedule and setting them to User are not built.
 ---
 
-# Stud Rails (RAM Concept) — draft
+# Two-Way Punching Design with Stud Rails (RAM Concept)
+
+The engineer calls this designing for two-way punching, shear studs or
+shear rails. Concept calls the rails SSR. It is all this workflow.
 
 The office method is in `../../references/RAM_CONCEPT_GUI_NOTES.md`,
-"Two-way shear: stud rails". Read it first; this skill only automates parts
-of it. Proven on one model (2636), as far as the status table.
+"Two-way shear: stud rails". Read it first; this skill automates parts of
+it. Run end to end on one model (2636, 2026-10-05): 56 punching checks, all
+passing, 51 with stud rails. The schedule and rails to `User` are not built.
 
 ```text
 settings by hand -> stud_openings.py add --all -> calc

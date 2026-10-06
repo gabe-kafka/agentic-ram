@@ -85,9 +85,12 @@ Confirm generated stud rails do not run through a modeled step.
 
 ## Two-way shear: stud rails (office path)
 
+Also called designing for two-way punching, shear studs or shear rails;
+Concept's name for the rails is SSR.
+
 From a senior reviewer's walkthroughs, 2026-10-02 and 2026-10-05. Run on one
-model as far as the openings, the radii and the status table; grouping and
-setting rails to `User` are not done yet. Checkpoint first.
+model until every punching check passed; grouping and setting rails to
+`User` are not done yet. Checkpoint first.
 
 Settings before reading results:
 
@@ -144,13 +147,30 @@ Reading the status:
 |---|---|---|
 | `OK`, `OK with SSR` | passes | none |
 | no row in the analysis table; plan shows `Error(s): Cutoff Sections` | rails generate but no cutoff section is found inside the search radius | raise that check's radius to 10, then 12 ft |
-| `Failed`, stud rail design on, unreinforced ratio above about 2 | over the limit even with stud rails; no rails are generated at any radius | move the assumed opening back, or a beam |
+| `Failed`, stud rail design on, unreinforced ratio above about 2.2 | over the limit even with stud rails; no rails are generated at any radius | move the assumed opening back, or a beam |
 | `Failed`, stud rail design off | usually a column on a beam | delete the check |
 
 A column that has lost its rails is not the same as a check in cutoff
 error. On the first run here the radius was raised on four columns that had
 no rails; they were failing on stress and the 15 real cutoff errors were
 missed until the table was exported.
+
+What the finished run showed (one model, 16 in transfer slab, 24 x 16 in
+columns):
+
+- A 10 ft radius cleared 15 of 16 cutoff errors. None needed 12 ft.
+- The stress ceiling with stud rails sat at about 2.2 times the
+  unreinforced capacity: a check at 2.14 passed, checks at 2.23 to 2.33
+  failed.
+- All four stress failures had rails before the assumed opening went in.
+  Moving the opening 1 ft straight back from the face dropped the ratio by
+  about 0.15 and all four passed. The same move cleared the one cutoff
+  error that 12 ft did not, beside a stair opening.
+- Moving an opening changes what the design assumes about penetrations at
+  that column. Try it in a separately named file; it goes in the working
+  model when the engineer accepts it.
+- The result tables go stale with the model. Export again after any change
+  to the mesh, the openings, the checks or a radius.
 
 More from the reviewer:
 
