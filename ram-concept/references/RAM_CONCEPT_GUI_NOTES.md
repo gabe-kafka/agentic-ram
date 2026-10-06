@@ -264,9 +264,9 @@ Draft tools for the openings, radii and status are in
 
 ## One-way shear in a two-way slab (office path)
 
-From a senior reviewer's walkthrough, 2026-10-06. Not yet run by this
-repository on any model. Code statements are the reviewer's; check ACI
-318-19 before citing them.
+From a senior reviewer's walkthrough and the office's written process, both
+seen 2026-10-06. Not yet run by this repository on any model. Code
+statements are the reviewer's; check ACI 318-19 before citing them.
 
 Why it is done this way: ACI 318-19 lowered one-way concrete shear capacity
 and added a limit on stirrup leg spacing across the width of a member (d, or
@@ -277,13 +277,18 @@ to hook. Concept does not check the number of legs.
 
 Two models, to end up with as few stirrups as possible:
 
-1. Save a copy of the model beside it, named like `<model>_full width`.
+1. After the additional reinforcement is coordinated (one-way concrete
+   shear capacity depends on the flexural steel), save a copy of the model
+   beside it, named `<job>_<model> - Full Width`.
 2. In the copy, select every design strip and set it to full width (it
    overrides any strip boundaries). Beam strips stay beams. Regenerate the
    strips and `Calc All`. Full width averages the shear over column and
    middle strip, which textbooks allow for one-way shear.
 3. `Layers > Reinforcement > Shear Reinforcement Plan`; take a screenshot.
-   The Design Status plan shows the same bars with more clutter.
+   The Design Status plan shows the same bars with more clutter. The
+   written process words this step as: review positive and negative shear
+   at columns and, on a copy of the plans, flag where demand exceeds
+   capacity at d from the face.
 4. Sort what the copy shows:
    - at a column that has stud rails: set aside, checked through the rails
      (below);
@@ -292,28 +297,51 @@ Two models, to end up with as few stirrups as possible:
      in a 16 in slab drops; 2 ft and more stays);
    - the rest are required. Expect them at beam ends, at corners of walls,
      along heavily loaded walls, and rarely at a column without stud rails.
-5. Close the copy. In the real model (strips on `code slab` width), at each
-   required location, use the column strip: group similar strip widths
-   down to one value, set the stirrups to 6 in on centre along the span,
-   and set the number of legs by hand to the mat bar spacing across that
-   width. The program's own answer is two legs at a tight spacing. Rerun
-   and tighten only where it still fails.
-6. Shear bars the real model still shows in middle strips are ignored,
-   unless they run along a long wall.
+5. Save and close the copy. In the real model (strips on `code slab`
+   width), at each required location, use the column strip. Legs across
+   the width go at the mat bar spacing, so the number of legs (`#L`)
+   follows from the strip width. Find the average `#L` through the slab
+   and, by judgement, reduce the regions to it. Along the span start at
+   6 in on centre. The program's own answer is two legs at a tight
+   spacing; override it (`CS Legs in Shear Reinforcement` on the span's
+   `Column Strip` tab, or the stirrup's own properties).
+6. If a location fails: where `#L` was cut to the average, add legs. Where
+   `#L` already fills the width, first check the column strip width was
+   not artificially reduced (as at a step-down); only then tighten the
+   spacing, 1 in at a time.
+7. Shear bars the real model still shows in middle strips are ignored,
+   except along a long wall: there, if the screening required stirrups in
+   the column strip, provide them in both column and middle strips
+   whatever the real model shows.
+8. Slab beside a beam will likely need stirrups along the beam's sides.
 
 Stud rail columns, checked for one-way shear through the rails:
 
 1. `Criteria > Materials`: add a reinforcing bar, for example `SSR one-way`,
    with the area of the stud (3/4 in stud = a #6 bar) and the stud's yield
    (50 ksi). The custom bar exists only to carry the lower yield.
-2. On the column strip segments at those columns, set `CS Shear Bar` to it.
+2. On the column strip segments at those columns, set `CS Shear Bar` to it
+   (`Selection Properties`, `Column Strip` tab). Selecting every span on a
+   plan also changes beam spans and spans with no stud rails; set those
+   back to the stirrup bar. Leave any field showing `**conflicting**`
+   untouched, or it is overwritten on every selected span.
 3. Rerun. The program generates two legs, the usual two rails on a face.
    Show the stud rail descriptions on the same plan. Where the rails' stud
    spacing is tighter than the stirrup spacing generated, the rails are
    enough. Check the governing span direction; the other faces follow.
 
+The written process checks the studs with an office spreadsheet, `SSR for
+One-way`, fed by the program stirrups from this run. Its location is not
+recorded here.
+
 Do the stirrup zones first. The reviewer has rarely had to change stud
 rails for one-way shear.
+
+A screening markup from an earlier job used: a red box for a stud rail
+location, a green stroke for "OK due to d distance", a red check for a
+required location, and beside each check the strip width in feet and a
+callout such as `(12) 10L` (read as 12 stirrups along the span, 10 legs
+each; the reading is inferred from the numbers).
 
 ## Beam reinforcement (office path)
 
