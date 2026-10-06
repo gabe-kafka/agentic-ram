@@ -212,6 +212,59 @@ Nothing here automates it.
 - Delete the punching checks at columns on beams.
 - Read status from Concept's own tables, not from whether rails exist.
 
+## Office standards for additional reinforcement (team meeting, 2026-10-06)
+
+Set by the senior reviewer and the final reviewer on 2026-10-05, presented
+to the team on 2026-10-06 and agreed. Source: eng-agent
+`meeting-transcripts/26-10-06 - Team meeting additional reinforcement
+process.txt`. These are first-pass standards. The aim is fewer calc
+iterations and simpler drawings, accepting heavier steel.
+
+**Targets.**
+
+- Additional bars total **20 to 25 percent of the mat tonnage**. Transfer
+  slabs have been running 30 to 35 percent. Usually that means the mat bar
+  goes up one size. A bid note at 75 percent can then say "allow X percent
+  additional bars" without a separate check. A before-and-after tonnage
+  case study on 2636 is planned once its additional reinforcement is done.
+- About **four to five calc iterations** for the whole additional
+  reinforcement pass, on an uninterrupted day. A calc is 5 to 10 minutes on
+  these models. Count them.
+- One slab option designed fully; see `RAM_CONCEPT_SLAB_OPTIONS.md`.
+
+**First pass, by hand.** Turn every program bar into a user bar while they
+are all still program bars, and read the slab from the bar label (the
+concentrated bar description format: `$S` spacing, `$Q` quantity, `$B`
+size; see `RAM_CONCEPT_GUI_NOTES.md`, "Bar description labels").
+
+| Bars | Read | Rule |
+|---|---|---|
+| Bottom | `$S` | One spacing per region, the average or the worst case, applied across the whole region. No 12 to 18 in transition inside a region: where the mat is at 12 in, the additional bars are at 12 in over the whole area |
+| Top over columns | `$Q` | Two to three count conditions for the slab (by eye or an Excel average), outliers left out; the pattern copied to every column in the region, for example 10#9 at the same length and spacing at every column. Expect 50 to 75 percent of columns settled in that batch |
+| Top over walls | `$S` | One spacing per wall; heavily loaded walls run 9 to 12 in |
+| Beams | tables | Top bars = the width minimum + 1; bottom bars = the single-layer maximum - 1, more layers if needed; stirrups 3 in at the ends, 9 in in the middle; add legs before changing spacing; widen the beam when legs stop helping. One pattern for all beams of a width. See `RAM_CONCEPT_GUI_NOTES.md`, "Beam reinforcement" |
+
+Then calc, fix the problem areas specifically, calc again.
+
+**What this means for the tools here.**
+
+- The bottom tool's bands by spacing fit the standard when one band covers
+  a region. Prefer the tighter spacing over the whole region to splitting
+  it into 12 and 18 in bands. The groups-versus-tons table stays; the
+  standard favours fewer groups.
+- The top tool's typical counts are the standard's two to three conditions.
+- Not built: the mat percentage (additional user bar tons over mat tons) in
+  the status report, and a mat-size what-if (the same slab with the mat one
+  size up: mat tons plus additional tons). The engineer offered this at the
+  meeting as the useful thing to code.
+- Slab one-way shear legs: the reviewer said one leg per mat bar in the
+  strip width (10 ft strip, 10 legs). The engineer's rule in this repo is
+  legs at 6 in. Unsettled; ask before averaging legs.
+- Next office topics: punching (a better way than an assumed opening at
+  every column) and one-way shear stirrups. A colleague's tip: export
+  Concept's SSR table as the basis for the stud rail spreadsheet; it goes
+  by coordinates and gives rail lengths.
+
 ## Where things live
 
 Repo `agentic-ram` (reusable, checked in):
@@ -355,7 +408,8 @@ permitted.
    size (2636: 17#7 in a 20 in web, whose single-layer maximum is 7#7 or
    6#9), on `Absolute` elevation, mid-span length only, no top bars, and
    leaves beam-end bars as the engineer's call. Wanted: the quick reference
-   rules above. Extending the bottom bars to the ends, anchored, replaces
+   rules above and the office first-pass rules (top minimum + 1, bottom
+   single-layer maximum - 1, stirrups 3 in ends and 9 in middle). Extending the bottom bars to the ends, anchored, replaces
    the beam-end class.
 7. **Final check with program reinforcement off.** Not found in the API or
    driven through the GUI yet; today the tools only count leftover program
@@ -375,6 +429,9 @@ permitted.
 13. **Callout format in the model**: Concept still prints `(10)#9x15T`.
 14. Pre-existing failing test:
     `test_attach_live_concept.test_parses_rss_launched_cpt_path`.
+15. **Mat percentage and mat-size what-if.** The office target is
+    additional bars at 20 to 25 percent of the mat tonnage. Nothing here
+    reports that ratio or compares the slab with the mat one size up.
 
 ## Picking this up elsewhere
 

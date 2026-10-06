@@ -139,6 +139,10 @@ groups first, then bands.
   bars inside a band. The zone rule in
   `../../references/SLAB_REBAR_OPTIMIZATION.md` is the fix and is not built.
 
+Office standard (2026-10-06): two to three count conditions for the slab,
+copied to every column in a region; outliers keep their own count. The
+typical counts here are those conditions.
+
 ### One callout per zone
 
 Two bands stacked in one middle strip is wrong. Until bands are grouped by

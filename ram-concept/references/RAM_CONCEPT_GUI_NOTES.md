@@ -71,6 +71,22 @@ Saved checkpoints store each plan's filter in `PlanData` /
 `FilterKeyShowFilter.FilterString`; `ConcentratedRebar.BarFace` is 1 = top,
 2 = bottom.
 
+### Bar description labels
+
+The concentrated bar description is a format string, like an Excel number
+format: `$B` is the bar size, `$Q` the quantity, `$S` the spacing. Hover
+over the format box to see every code; a custom callout can be typed in.
+Select all concentrated bars and change the format at once; the office does
+that at CAD export, to its drawing nomenclature. The default prints
+`(10)#9x15T`.
+
+First-pass use (office standard, 2026-10-06): while every program bar is
+still a program bar, select them all, set them to `User`, and set the label
+to `$S` (bottom bars, bars over walls) or `$Q` (top bars over columns) for a
+bird's-eye view of the whole slab. Pick one spacing per region and two to
+three column counts from that, apply them everywhere, then calc. Later, with
+user and program bars mixed, the view gets confusing.
+
 ### Design strips: segmenting and boundaries
 
 From a working session with a senior reviewer, 2026-10-06.
@@ -303,7 +319,10 @@ Two models, to end up with as few stirrups as possible:
    6 in grid of legs over the strip, so the number of legs (`#L`) is the
    strip width in feet times two (engineer's rule, 2026-10-06; the
    written process says "at the mat bar spacing", which the office
-   reads as this grid). Find the average `#L` through the slab and, by
+   reads as this grid). At the team meeting that afternoon the reviewer
+   said one leg per mat bar in the strip width (a 10 ft strip gets 10
+   legs), half the grid. Which rule holds is unsettled; ask the engineer
+   before averaging legs. Find the average `#L` through the slab and, by
    judgement, reduce the regions to it. Along the span start at 6 in on
    centre. The program's own answer is two legs at a tight spacing;
    override it (`CS Legs in Shear Reinforcement` on the span's `Column
@@ -370,15 +389,22 @@ The maximums assume 1.5 in clear cover to the stirrup, 3/4 in aggregate, and
 
 - **Top bars:** draw the minimum number for the beam width over the full
   beam length, even where the design needs none; they carry the stirrups.
-  Use #9, or the bottom bar size, or #7 where the top is light.
-- **Bottom bars:** never more than the single-layer maximum. A program
+  Use #9, or the bottom bar size, or #7 where the top is light. Office
+  first pass (team meeting 2026-10-06): the minimum plus one (20 in: 4).
+- **Bottom bars:** never more than the single-layer maximum. Office first
+  pass (2026-10-06): the single-layer maximum minus one (20 in, #8: 6), a
+  second layer if needed, one pattern for all beams of a width. A program
   result such as 15#7 in a 16 or 20 in beam means go up to #9, start with
   the single-layer maximum, and add a second layer if needed. Extend the
   bars to the ends of the beam and set both ends `Anchored`.
 - **Elevation:** set beam bars to `Bottom Cover` = 2 in, not `Absolute`.
   It reads directly and makes a second layer simple.
 - **Stirrups:** #4 at 3 in on centre over the full length to start;
-  normally split into end, middle and end zones.
+  normally split into end, middle and end zones. Office first pass
+  (2026-10-06): 3 in at the ends, 9 in in the middle; where that is short,
+  add legs, not tighter spacing. If legs keep failing the section is at its
+  maximum shear (the reviewer cites 8 root f'c in ACI 318-19; verify) and
+  the beam must get wider.
 
 ## Mat / lateral foundation design (office path)
 

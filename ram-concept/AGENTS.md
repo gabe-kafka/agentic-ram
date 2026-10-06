@@ -27,6 +27,11 @@ up on another machine. Then read the job's
 Standing rules from the engineer, which apply in every session:
 
 - Fewest bar groups; show the groups-vs-tons table and let the engineer pick.
+- Office first-pass standards (team meeting 2026-10-06): additional bars at
+  20 to 25 percent of the mat tonnage, one spacing per region, two to three
+  column count conditions, beam top bars minimum + 1 and bottom bars
+  single-layer maximum - 1, stirrups 3 in ends and 9 in middle. See
+  `references/SLAB_REBAR_OPTIMIZATION.md`, "Office standards".
 - One callout per zone at most (column strip or middle strip, over the
   column line or at midspan).
 - Capture stray single program bars into the user group beside them.

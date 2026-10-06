@@ -20,6 +20,15 @@ Office PDF default:
 A project meeting may override that order (for example punching before
 deflection). Follow the project sequence when one is recorded.
 
+Office standard since the 2026-10-06 team meeting: design **one** option
+fully, the one the office expects to recommend (the architect rarely picks
+another). Document it, then change only the thickness (16 in to 14 in in
+the example) and do a visual review of the results: a rough count and the
+general locations of beams needed for deflection and punching, without
+modelling them or iterating. The comparison schedule is reduced and carries
+little reinforcement detail for the secondary option. A true 50/50 case
+still gets two full options.
+
 Batch a reasonable set of geometry changes, then `Calc All`. Recheck punching,
 deflection, and reinforcement after each meaningful iteration.
 

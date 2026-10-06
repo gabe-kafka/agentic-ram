@@ -28,6 +28,10 @@ bot-lat:  baseline -> options table -> engineer picks -> run
   beside the wall drops out of design in that direction.
 - Additional bottom bars are needed only at column strips in most cases.
   Keep a callout to about 30 ft.
+- One spacing per region (office standard, 2026-10-06): the average or the
+  worst-case spacing over the whole region, not a 12 to 18 in transition
+  inside it. Where the mat is at 12 in, the additional bars are at 12 in
+  over the whole area. Fewer bands beat lower tonnage.
 
 ## Run (from the engine's `scripts/`)
 
