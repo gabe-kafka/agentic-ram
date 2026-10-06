@@ -56,6 +56,8 @@ def regions(db):
     out = []
     for p0, p1, sdir, by, legs, spacing in db.execute(
             "select Point0, Point1, SpanDirection, DesignedBy, StirrupLegs, StirrupSpacing from TransverseRebarRegion"):
+        if by != 2:                                  # user regions are the answer, not the question
+            continue
         (x0, y0), (x1, y1) = pts(p0)[0], pts(p1)[0]
         out.append(dict(x0=x0, y0=y0, x1=x1, y1=y1, along="x" if abs(x1 - x0) >= abs(y1 - y0) else "y",
                         length=math.hypot(x1 - x0, y1 - y0), legs=legs, spacing=spacing / IN,
@@ -150,6 +152,13 @@ def plan(found, path: Path, out: Path):
         has = any(math.hypot(cx - qx, cy - qy) < 1.0 for qx, qy in rails)
         ax.add_patch(plt.Rectangle((cx - b / 24, cy - d / 24), b / 12, d / 12, facecolor="#e03131" if has else "#343a40", zorder=3))
     color = {"REQUIRED": "#c92a2a", "OK by d": "#2b8a3e", "SSR": "#e8590c"}
+    for p0, p1, legs, sp in db.execute("select Point0, Point1, StirrupLegs, StirrupSpacing from TransverseRebarRegion where DesignedBy = 1"):
+        (x0, y0), (x1, y1) = pts(p0)[0], pts(p1)[0]                 # user regions: magenta outline with the callout
+        along_x = abs(x1 - x0) >= abs(y1 - y0)
+        w = 1.4
+        rect = (min(x0, x1), (y0 + y1) / 2 - w / 2, abs(x1 - x0), w) if along_x else ((x0 + x1) / 2 - w / 2, min(y0, y1), w, abs(y1 - y0))
+        ax.add_patch(plt.Rectangle(rect[:2], rect[2], rect[3], facecolor="none", edgecolor="#d6336c", lw=1.8, zorder=6))
+        ax.annotate(f"{legs}L @{sp / IN:.0f}\"", ((x0 + x1) / 2, (y0 + y1) / 2), fontsize=6, color="#d6336c", xytext=(3, -9), textcoords="offset points", zorder=7)
     for r in found:
         w = 1.0
         if r["along"] == "x":
@@ -162,6 +171,7 @@ def plan(found, path: Path, out: Path):
     for k, c in color.items():
         ax.plot([], [], color=c, lw=6, label=k)
     ax.plot([], [], "s", color="#e03131", label="column with stud rails")
+    ax.plot([], [], color="#d6336c", lw=2, label="user stirrup region (legs @ spacing)")
     ax.legend(loc="lower left", fontsize=9)
     ax.set_aspect("equal")
     ax.autoscale()
