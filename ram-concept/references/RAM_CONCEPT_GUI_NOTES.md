@@ -313,6 +313,12 @@ Two models, to end up with as few stirrups as possible:
      in a 16 in slab drops; 2 ft and more stays);
    - the rest are required. Expect them at beam ends, at corners of walls,
      along heavily loaded walls, and rarely at a column without stud rails.
+   The d rule screens a location in or out; it does not trim one that is
+   in. Concept draws one stirrup zone as a short region at the face plus
+   longer ones beyond it, each with its own spacing. Judge the zone by
+   where it ends. A zone that is needed gets stirrups from the support
+   face out. (Applying the rule region by region left zones starting 1.5
+   to 2 ft off the support on the first job; the engineer caught it.)
 5. Save and close the copy. In the real model (strips on `code slab`
    width), at each required location, use the column strip. Legs across
    the width: **one leg per mat bar** in the strip (the written process's
@@ -357,6 +363,11 @@ Stud rail columns, checked for one-way shear through the rails:
 The written process checks the studs with an office spreadsheet, `SSR for
 One-way`, fed by the program stirrups from this run. Its location is not
 recorded here.
+
+Stirrup spacing along the span may not exceed d/2 or the program does not
+count the stirrups: 6 in works in a 16 in slab, a 12 in slab needs 4 in.
+After a calc, a user zone is good when the program draws nothing more on
+its line.
 
 Do the stirrup zones first. The reviewer has rarely had to change stud
 rails for one-way shear.
