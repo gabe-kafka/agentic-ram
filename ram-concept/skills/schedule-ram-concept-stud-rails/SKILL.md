@@ -15,13 +15,13 @@ calculated model, all punching checks passing (status from the exported table)
   -> stud_rail_schedule.py <rows.json>    rows, proposed types, one controlling row per type
   -> the engineer reviews the types
   -> build-ssr-workbook.ps1               the office workbook: input rows and the FOR CAD table
-  -> markup_ssr_plan.py                   the column location plan with an SR-n Bluebeam tag at every stud rail column
+  -> markup-ram-concept-ssr-plan          the column location plan with an SR-n Bluebeam tag at every stud rail column
   -> by hand: each rail set to User with its type's values, calc, every check still passes
 ```
 
 The handoff to the documentation team is two files, as on 2636_03: the workbook's `FOR CAD` tab (the schedule
-table) and the column location plan (sheet S101D) with a blue text-box markup `SR-n` beside each stud rail
-column's bubble. The tags are ordinary Bluebeam FreeText markups, so the drafter can move or retype any of them.
+table, from here) and the column location plan (sheet S101D) with a blue text-box markup `SR-n` beside each stud
+rail column's bubble (the next skill, `markup-ram-concept-ssr-plan`).
 
 ## What is automated
 
@@ -31,21 +31,9 @@ column's bubble. The tags are ordinary Bluebeam FreeText markups, so the drafter
 | Types against studs | `stud_rail_schedule.py <calc.cpt> --options` | 2636: 6 to 9 types, +17 to +36 percent studs |
 | Proposed types | same, `--step 1.25 --tight 4.0` | 2636: 8 types, +17 percent; the grouping picked by hand on that job was 7 types, +15 percent |
 | Workbook | `build-ssr-workbook.ps1 -Source <previous SSR.xlsx> -RowsJson rows.json -Out <new.xlsx> -Tag B2 -SourceTag B3` | the job's copy built the 2636 workbook; this copy is parse-checked only |
-| Plan markup | `markup_ssr_plan.py <SSR.xlsx> <drawing set or sheet.pdf> <out.pdf> [--report placements.json]` | 2636_02: 51 of 51 columns tagged at their bubble, worst match 0.53 ft, 6 tags dropped below the bubble to clear a neighbour |
 
-Read-only on the model. No API session is needed.
-
-### Plan markup
-
-`markup_ssr_plan.py` reads the `SSR Input` sheet (Mk and the column's Concept `(x, y)`) and the column location
-plan: the page with the most `X:ff'-ii"` labels in the PDF given, or `--page`. The plan's work point is not the
-Concept origin (on 2636_02 the shift was 11.8 ft in x and 30.2 ft in y); the script takes the shift from the data,
-the most common whole-foot difference over every column pairing, and then matches each workbook column to the
-plan label within 1 ft. The bubble is found through a page fit (the column number is a block attribute at a fixed
-offset from the column), with a wider second pass for bubbles the drafter nudged. Every column that fails to match,
-or has no bubble, is listed and still tagged, with a `?`, at its label. Check that list before handing the PDF on.
-The output is that one page only, like the 2636_03 markup. Tags: blue Helvetica 10 pt in a 1 pt blue box, no fill,
-subject `Text Box`, author `--author` (default `GKG`).
+Read-only on the model. No API session is needed. The `Column at (x, y) ft` column added to `SSR Input` on 2636_02
+is what the plan markup reads; keep it.
 
 ## The grouping rule
 

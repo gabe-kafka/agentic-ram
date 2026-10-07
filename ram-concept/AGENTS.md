@@ -17,7 +17,8 @@ localhost API only.
 
 ## Core slab design workflows
 
-The engineer's five, in the order they are done on a slab. Each is one
+The engineer's five, in the order they are done on a slab, plus the plan
+markup that hands the stud rails to the documentation team. Each is one
 skill; read its `SKILL.md` before acting. Design strips come first (beam
 strips: `skills/set-ram-concept-beam-strips`), and every step ends with the
 newest calculated model synced into the production RAM model.
@@ -29,6 +30,7 @@ newest calculated model synced into the production RAM model.
 | 3 | Two-way punching reinforcement (stud rails, SSR) | `skills/design-ram-concept-stud-rails` | moving an assumed opening back, against the floor plan above |
 | 4 | Shear stud schedule | `skills/schedule-ram-concept-stud-rails` | the types |
 | 5 | One-way shear reinforcement | `skills/design-ram-concept-one-way-shear` | the marked-up PDF; the SVG reading goes back to him before any bar is drawn |
+| 6 | SSR plan markup for the documentation team | `skills/markup-ram-concept-ssr-plan` | he plots S101D himself; the tagged PDF is checked in Bluebeam |
 
 - 1 and 2 share `skills/simplify-ram-concept-rebar` (the engine) and
   `skills/clean-up-ram-concept-t-beams` (beam conditions).
@@ -103,6 +105,13 @@ Standing rules from the engineer, which apply in every session:
 
 ## Live API attach
 
+- **Design work goes through a live API session** (engineer's rule,
+  2026-10-07): start `scripts/start-ram-concept-api.cmd --file <model.cpt>
+  --port <N>` so the engineer sees the same window, make the changes through
+  the API, calc there, save into the job folder, and swap the saved file into
+  the production `.rss` at stopping points. Headless Concept is for builds
+  and checks the engineer does not need to watch (screening copies, replays,
+  batch verification), not for the back-and-forth of a design.
 - Use `scripts/attach-live-concept.py` to probe `Concept.exe` and attach when
   the process was started with `-apiServer` or `-apiServerWithGui`.
 - Wrap the already-open model. Do not call `open_file`, `save_file`,
