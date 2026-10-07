@@ -111,6 +111,26 @@ output is a new one-page file.
 - Pasting the `FOR CAD` table onto the sheet; the drafter does that.
 - Plans without printed `X:`/`Y:` labels: the fit has nothing to read.
 
+## Drawing column numbers back into the workbook
+
+The workbook's column A is only a running row number from the builder. The
+engineer wants the drawing's column number on each row (2636_02, 2026-10-07:
+"add the column labeling from the pdf and our drawing set"). The markup's
+`--report` holds that mapping (Concept `(x, y)` to bubble), so after the
+markup:
+
+```powershell
+powershell.exe -NoProfile -File scripts\write-plan-columns.ps1 -Workbook <SSR.xlsx> -Report <placements.json>
+```
+
+It inserts `Plan Col. (S101D)` right after `Column at (x, y) ft` (the type
+table shifts one column right and its formulas follow) and fills it by
+matching `(x, y)`. Run it under Windows PowerShell 5.1 (`powershell.exe`),
+not 7: when the engineer has the workbook open, 5.1 can attach to his
+running Excel and write there, which is what he sees; PowerShell 7 cannot
+reach a running Excel. 2636_02: 51 of 51 rows filled, type table still OK.
+
 ## Bundled scripts
 
 - `scripts/markup_ssr_plan.py`
+- `scripts/write-plan-columns.ps1`
