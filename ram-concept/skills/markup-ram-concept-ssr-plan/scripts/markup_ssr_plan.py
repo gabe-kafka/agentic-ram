@@ -27,8 +27,10 @@ from pathlib import Path
 import openpyxl
 import pymupdf
 
-TAG_W, TAG_H = 35.8, 14.0          # the 2636_03 tags: 35.8 x 14 pt boxes
-TAG_DX, TAG_DY = 21.0, -4.0        # tag's top-left from the bubble centre (right of the bubble, nearly level)
+TAG_W, TAG_H = 30.0, 14.0          # "SR-n" in Helvetica 10 pt with 1 pt padding; the 2636_03 hand tags were 35.8 x 14
+TAG_DX, TAG_DY = 21.0, -4.0        # fallback only: tag's top-left from the bubble centre, when no column symbol is found
+GAP = 0.5                          # the tag's border touches the column symbol's edge
+BUBBLE_R = 9.0                     # column bubble circle, pt
 BLUE = (0, 0, 1)
 
 
@@ -118,6 +120,7 @@ def find_bubbles(cols, ints):
     used = set()
     for c in cols:
         c["bx"], c["by"] = T(c["X"], c["Y"])
+        c["gx"], c["gy"] = c["bx"], c["by"]          # the block's bubble spot from the fit, kept even when the drafter moved the bubble
         c["bubble"] = None
     for reach in (30, 60):          # first every bubble at its block offset, then the ones the drafter nudged aside
         for c in sorted(cols, key=lambda c: (c["Y"], c["X"])):
@@ -127,6 +130,30 @@ def find_bubbles(cols, ints):
             if b and math.hypot(b[0] - c["bx"], b[1] - c["by"]) < reach:
                 used.add(b)
                 c["bubble"], c["bx"], c["by"] = b[2], b[0], b[1]
+
+
+def column_symbols(page):
+    """The column symbols: small stroked rectangles (a 24 x 16 in column is 9 x 6 pt at 1/16 in = 1 ft).
+    Returns their rects; the caller takes the one nearest each bubble."""
+    out = []
+    for g in page.get_drawings():
+        r = g["rect"]
+        if g.get("type") == "s" and len(g["items"]) == 1 and 3 <= r.width <= 14 and 3 <= r.height <= 14:
+            out.append(r)
+    return out
+
+
+def attach_symbols(cols, symbols, reach=35.0):
+    """Give each labelled column the symbol nearest the block's fitted bubble spot, else nearest its actual bubble,
+    within `reach` pt. The symbol sits at a fixed offset from the block, so the fitted spot finds it even where the
+    drafter moved the bubble. Neighbouring columns are 60 pt or more apart at 15 ft, so the nearest is the column's own."""
+    for c in cols:
+        c["sym"] = None
+        for ax, ay in ((c["gx"], c["gy"]), (c["bx"], c["by"])):
+            r = min(symbols, key=lambda r: math.hypot((r.x0 + r.x1) / 2 - ax, (r.y0 + r.y1) / 2 - ay), default=None)
+            if r and math.hypot((r.x0 + r.x1) / 2 - ax, (r.y0 + r.y1) / 2 - ay) < reach:
+                c["sym"] = tuple(r)
+                break
 
 
 def datum_shift(rows, cols):
@@ -139,23 +166,42 @@ def datum_shift(rows, cols):
     return dx, dy, n
 
 
-SPOTS = ((TAG_DX, TAG_DY), (TAG_DX - 8.0, TAG_DY + 16.0), (TAG_DX - 8.0, TAG_DY - 16.0))   # right, below-right, above-right
+def spots(q):
+    """Candidate tag rects for one column, in order. With a column symbol: touching its right edge, centred on it
+    (the engineer's rule, 2026-10-07: the tag must read as that column's); then touching its left edge; then
+    hanging under it. Without a symbol: right of the bubble, then below, then above, as the 2636_03 drafter did."""
+    if q.get("sym"):
+        x0, y0, x1, y1 = q["sym"]
+        top = y1 - TAG_H                   # bottom edge level with the symbol's bottom: up out of the X:/Y: text below
+        bx, by = q["bx"], q["by"]          # the column's own bubble, usually up-right of the symbol in the block
+        if x1 + GAP - BUBBLE_R < bx < x1 + GAP + TAG_W + BUBBLE_R:
+            top = max(top, by + BUBBLE_R + GAP)                 # slide down just enough to clear the bubble's circle
+        top = min(top, y0)                                      # but never below top-aligned with the symbol
+        return [(x1 + GAP, top), (x0 - GAP - TAG_W, top), ((x0 + x1) / 2 - TAG_W / 2, y1 + GAP)]   # right, left, under
+    bx, by = q["bx"], q["by"]
+    return [(bx + TAG_DX, by + TAG_DY), (bx + TAG_DX - 8.0, by + TAG_DY + 16.0), (bx + TAG_DX - 8.0, by + TAG_DY - 16.0)]
 
 
-def settle(placed, bubbles):
-    """Keep each tag off every bubble and every earlier tag: try right of the bubble, then below, then above.
-    Columns 15 ft apart put a tag against the next bubble; the 2636_03 drafter dropped those below. Returns the count moved."""
+def settle(placed, bubbles, symbols):
+    """Place each tag at its first candidate spot clear of every bubble, every column symbol and every earlier tag.
+    Returns the count that did not get their first spot."""
     taken, moved = [], 0
     for q in placed:
-        if q["bubble"] is None:
+        if not q["ok"]:
             taken.append((q["x0"], q["y0"], q["x0"] + TAG_W, q["y0"] + TAG_H))
             continue
-        bx, by = q["x0"] - TAG_DX, q["y0"] - TAG_DY
-        for i, (dx, dy) in enumerate(SPOTS):
-            r = (bx + dx, by + dy, bx + dx + TAG_W, by + dy + TAG_H)
-            hits_bubble = any(r[0] - 11 < x < r[2] + 11 and r[1] - 11 < y < r[3] + 11 for x, y in bubbles if (x, y) != (bx, by))
-            hits_tag = any(r[0] < t[2] and t[0] < r[2] and r[1] < t[3] and t[1] < r[3] for t in taken)
-            if not hits_bubble and not hits_tag:
+        own = q.get("sym")
+
+        def circle_hits(r, x, y):        # bubble circle against the tag rect
+            cx, cy = min(max(x, r[0]), r[2]), min(max(y, r[1]), r[3])
+            return math.hypot(x - cx, y - cy) < BUBBLE_R
+
+        for i, (x0, y0) in enumerate(spots(q)):
+            r = (x0, y0, x0 + TAG_W, y0 + TAG_H)
+            hit = any(circle_hits(r, x, y) for x, y in bubbles if (x, y) != (q["bx"], q["by"]))   # own bubble is handled in spots()
+            hit = hit or any(r[0] < s[2] and s[0] < r[2] and r[1] < s[3] and s[1] < r[3] for s in symbols if s != own)
+            hit = hit or any(r[0] < t[2] and t[0] < r[2] and r[1] < t[3] and t[1] < r[3] for t in taken)
+            if not hit:
                 break
         q["x0"], q["y0"] = r[0], r[1]
         moved += i > 0
@@ -198,9 +244,11 @@ def main(argv=None):
     cols = plan_labels(page)
     if len(cols) < 4 or len(rows) < 1:
         raise SystemExit(f"{len(cols)} labelled columns on page {pno + 1}, {len(rows)} workbook rows: nothing to fit")
+    symbols = column_symbols(page)
+    attach_symbols(cols, symbols)
     dx, dy, n = datum_shift(rows, cols)
     print(f"{sheet}: {len(rows)} stud rail columns. {a.plan.name} page {pno + 1}: {len(cols)} labelled columns, "
-          f"{sum(1 for c in cols if c['bubble'])} with a bubble found.")
+          f"{sum(1 for c in cols if c['bubble'])} with a bubble found, {sum(1 for c in cols if c['sym'])} with a column symbol.")
     print(f"Concept origin to plan work point: x + {dx:.2f} ft, y + {dy:.2f} ft ({n} of {len(rows)} columns agree to the foot)")
 
     placed, problems, used = [], [], {}
@@ -216,19 +264,22 @@ def main(argv=None):
         if key in used:
             problems.append(f"{where}: same plan column as {used[key]}")
         used[key] = r["mk"]
-        if c["bubble"] is None:
-            problems.append(f"{where}: label matched but no bubble above it; tagged at the label")
-            placed.append(dict(r, bubble=None, text=r["mk"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
+        if c["bubble"] is None and c["sym"] is None:
+            problems.append(f"{where}: label matched but no bubble or column symbol near it; tagged at the label")
+            placed.append(dict(r, bubble=None, sym=None, text=r["mk"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
             continue
-        placed.append(dict(r, bubble=c["bubble"], text=r["mk"], x0=c["bx"] + TAG_DX, y0=c["by"] + TAG_DY, resid=resid, ok=True))
+        if c["sym"] is None:
+            problems.append(f"{where}: no column symbol near bubble {c['bubble']}; tagged beside the bubble instead")
+        placed.append(dict(r, bubble=c["bubble"] or "?", sym=c["sym"], bx=c["bx"], by=c["by"], text=r["mk"],
+                           x0=c["bx"] + TAG_DX, y0=c["by"] + TAG_DY, resid=resid, ok=True))
 
-    moved = settle(placed, [(c["bx"], c["by"]) for c in cols if c["bubble"]])
+    moved = settle(placed, [(c["bx"], c["by"]) for c in cols if c["bubble"]], [tuple(s) for s in symbols])
     good = [q for q in placed if q["ok"]]
     worst = max((q["resid"] for q in good), default=0.0)
     if moved:
-        print(f"{moved} tags moved below or above their bubble to clear a neighbour")
+        print(f"{moved} tags could not sit on the right side of their column and went left of it or under it")
     print(f"{len(good)} of {len(rows)} columns tagged at their bubble; worst match {worst:.2f} ft")
-    for q in sorted(good, key=lambda q: int(q["bubble"])):
+    for q in sorted(good, key=lambda q: int(q["bubble"]) if q["bubble"].isdigit() else 999):
         print(f"  col {q['bubble']:>3}  {q['text']:5}  concept ({q['x']:.0f},{q['y']:.0f})")
     if problems:
         print(f"{len(problems)} PROBLEMS:")

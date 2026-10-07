@@ -45,19 +45,36 @@ output is a new one-page file.
   take the dominant offset of integers from the fitted columns, refit on those
   bubbles, then the nearest unused integer within 30 pt, and a second pass at
   60 pt for bubbles the drafter nudged aside. Nearest-text alone picks the
-  neighbour's bubble at 15 to 20 ft column spacing.
+  neighbour's bubble at 15 to 20 ft column spacing. The bubble is for the
+  report (`col 43 SR-1`); the tag is placed on the column symbol.
+- **Column symbol.** The column is a small stroked rectangle in the page's
+  vector drawings (24 x 16 in is 9 x 6 pt at 1/16 in = 1 ft). It is taken as
+  the stroked single-item rect of 3 to 14 pt nearest the block's fitted bubble
+  spot, within 35 pt, with the actual bubble as the second try. The fitted spot
+  matters: where the drafter moved a bubble (2636_02 column 67 at the stair),
+  the symbol is still at the block's offset.
+- **Where the tag goes.** Engineer's rule, 2026-10-07, after the first pass
+  put tags beside the bubbles and he said it was unclear which label applied
+  to which column: the box **touches the right side of the column symbol**,
+  bottom edge level with the symbol's bottom, so it sits up out of the `X:`/`Y:`
+  text of the next column. The block puts the bubble up-right of the symbol,
+  where that box would clip it, so the box slides down only as far as the
+  bubble's 9 pt circle requires, never below top-aligned with the symbol
+  (2636_02: every one of the 51 stayed on the right side). `settle()` falls
+  back to touching the left side, then hanging under the symbol, only against
+  other columns' bubbles, other symbols and earlier tags.
+  A column with no symbol found gets the bubble placement (right, below, above)
+  and a PROBLEMS line.
 - **Tags.** `add_freetext_annot(rect, text, fontsize=10, fontname="helv",
   text_color=blue, fill_color=None, border_width=1)`: blue Helvetica 10 pt in a
-  1 pt blue box drawn in the text colour, no fill, 35.8 x 14 pt like the 2636_03
-  tags, subject `Text Box`, author `--author` (default `GKG`). `DS` and `RC`
-  carry the same style so Bluebeam keeps blue 10 pt when a tag is retyped. In
-  pymupdf, `richtext=True` loses the colour and size and `border_color` is
-  refused outside rich text; this way needs neither.
-- **Crowding.** A tag right of the bubble runs into the next bubble at 15 ft
-  spacing; the 2636_03 drafter dropped those below. `settle()` tries right,
-  then below-right, then above-right, against every bubble and earlier tag.
-- **Misses.** A column with no label within 1 ft, or no bubble, is listed under
-  PROBLEMS and still tagged at its label with a `?`. Nothing is dropped.
+  1 pt blue box drawn in the text colour, no fill, 30 x 14 pt, subject
+  `Text Box`, author `--author` (default `GKG`). `DS` and `RC` carry the same
+  style so Bluebeam keeps blue 10 pt when a tag is retyped. In pymupdf,
+  `richtext=True` loses the colour and size and `border_color` is refused
+  outside rich text; this way needs neither.
+- **Misses.** A column with no label within 1 ft, or no bubble and no symbol,
+  is listed under PROBLEMS and still tagged at its label with a `?`. Nothing is
+  dropped.
 
 ## Rules
 
