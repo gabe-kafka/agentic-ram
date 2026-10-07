@@ -83,6 +83,16 @@ radius changes go through the GUI, and deleting a check or setting rails to
   call. Keep it in a trial file, out of the production model, until the
   engineer accepts it.
 - Delete the checks at columns on beams before judging anything.
+- **A rail set with rails of two lengths is not finished** (engineer,
+  2026-10-07: different-length rails around a column are non-typical). Read
+  the stud counts in every `SsrSet`; where some rails are shorter because an
+  opening or slab edge sits inside the rail length (2636: the two north rails
+  at the stair column (157,307), 15 studs against 36), or where the rails
+  cross a slab step (2636 column 59, (157,262)), the column needs a different
+  answer, chosen by the engineer: drop cap or drop panel, a beam, or the
+  opening moved. A short rail that nothing physical forces is a program
+  artefact; the schedule type covers it with full rails. Settle this before
+  the schedule, which refuses to type a non-typical column.
 - Regenerating the mesh after adding openings moves the rebar results a
   little. Recheck the bars afterwards.
 - `punch-radius.ps1` reads the command prompt from the status bar. The

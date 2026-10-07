@@ -28,6 +28,7 @@ rail column's bubble (the next skill, `markup-ram-concept-ssr-plan`).
 | Step | Tool | How it is proved |
 |---|---|---|
 | Rows as designed | `stud_rail_schedule.py <calc.cpt> <rows.json>` | 2636: 51 rows, identical to the rows the job's workbook was built from |
+| Non-typical columns | same run, `NON-TYPICAL` list | 2636: exactly the two the senior reviewer found by eye, (157,262) rails across the 12 to 16 in step and (157,307) north rails stopped by the stair; (176,277) classed a program artefact |
 | Types against studs | `stud_rail_schedule.py <calc.cpt> --options` | 2636: 6 to 9 types, +17 to +36 percent studs |
 | Proposed types | same, `--step 1.25 --tight 4.0` | 2636: 8 types, +17 percent; the grouping picked by hand on that job was 7 types, +15 percent |
 | Workbook | `build-ssr-workbook.ps1 -Source <previous SSR.xlsx> -RowsJson rows.json -Out <new.xlsx> -Tag B2 -SourceTag B3` | the job's copy built the 2636 workbook; this copy is parse-checked only |
@@ -60,8 +61,18 @@ The same length at two spacings stays two types.
   final (`design-ram-concept-stud-rails`).
 - Any change to the mesh, the openings, a radius or the bars changes the
   rails. Read the rows again.
-- A column whose rails stop at an opening carries a comment (`N RAILS: 15
-  STUDS`); it stays in its type and the detail goes on the drawings.
+- **Every rail around a column is the same type and length** (engineer,
+  2026-10-07). The comment column stays blank, as the Building 3 schedule
+  shipped. A program design with some rails shorter than the rest is handled
+  two ways, and the script tells them apart by geometry: if nothing physical
+  lies on the short rail's line within the longest rail's length, it is a
+  program artefact and the standard type covers the column with full rails
+  (2636 column 62, (176,277), E/W rails one stud short); if an opening or the
+  slab edge lies on that line, the column is **NON-TYPICAL**: it gets no type,
+  is listed for the engineer, and needs another solution (drop cap, beam,
+  moved opening) before the schedule is final (2636 column 67, (157,307), two
+  north rails stopped by the stair). "Go up to the next category if needed",
+  never a note.
 - A model that already holds user rail sets stops the script.
 - One-way shear at the stud rail columns is checked through the rails
   (`design-ram-concept-one-way-shear`). It rarely changes them; if it does,

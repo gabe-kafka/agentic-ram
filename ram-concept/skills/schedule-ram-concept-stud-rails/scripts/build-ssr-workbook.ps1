@@ -14,7 +14,7 @@ if (Test-Path $Out) { throw "$Out exists" }
 $rows = @(Get-Content $RowsJson -Raw | ConvertFrom-Json)
 $n = $rows.Count
 $last = 4 + $n
-$marks = @($rows | ForEach-Object { $_.mk } | Sort-Object -Unique)
+$marks = @($rows | Where-Object { $_.mk -ne 'NON-TYPICAL' } | ForEach-Object { $_.mk } | Sort-Object -Unique)   # a NON-TYPICAL row is listed but is no type
 if ($marks.Count -gt 8) { throw 'more than 8 types: the FOR CAD sheet has 8 formatted rows' }
 Copy-Item $Source $Out
 $missing = [Type]::Missing

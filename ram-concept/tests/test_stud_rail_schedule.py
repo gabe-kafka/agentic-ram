@@ -57,6 +57,24 @@ class ProposeTest(unittest.TestCase):
         long = next(g for b, g in types if b["studs"] == 20)
         self.assertEqual(sorted(r["x"] for r in long), [3, 5])
 
+    def test_a_non_typical_column_gets_no_type_and_the_rest_still_group(self):
+        # the engineer's rule, 2026-10-07: rails of two lengths around a column are non-typical, never a schedule note
+        rows = [row(1, 8, 6.5), row(2, 20, 4.0), row(3, 36, 3.0), row(4, 24, 3.25)]
+        odd = rows[2]
+        odd["nontypical"] = "N rail 15 of 36 studs, stopped by opening"
+        types = srs.propose(rows)                                             # sorts rows in place
+        self.assertEqual(odd["mk"], srs.NONTYP)
+        self.assertNotIn("controlling", odd)
+        self.assertEqual(sum(len(g) for _, g in types), 3)
+        self.assertTrue(all(r["mk"].startswith("SR-") for r in rows if r is not odd))
+        self.assertIs(rows[-1], odd)                                          # sorted last
+
+    def test_blocked_sees_an_opening_on_the_rail_line_and_ignores_one_beside_it(self):
+        opening = [((2.0, -0.5), (2.5, -0.5)), ((2.5, -0.5), (2.5, 0.5)), ((2.5, 0.5), (2.0, 0.5)), ((2.0, 0.5), (2.0, -0.5))]
+        self.assertEqual(srs.blocked((0.0, 0.0), (1.0, 0.0), 6.0, [], opening), "opening")      # east rail runs into it
+        self.assertIsNone(srs.blocked((0.0, 0.0), (0.0, 1.0), 6.0, [], opening))                 # north rail misses it
+        self.assertIsNone(srs.blocked((0.0, 0.0), (1.0, 0.0), 1.5, [], opening))                 # too short to reach it
+
     def test_a_wider_step_never_adds_studs_per_column_below_the_design(self):
         rows = [row(i, n, s) for i, (n, s) in enumerate([(8, 6.5), (12, 5.25), (20, 4.0), (24, 3.5), (28, 3.25), (36, 3.0)])]
         designed = sum(r["rails"] * r["studs"] for r in rows)

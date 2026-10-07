@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -51,10 +52,41 @@ def rail_length(first_in, typical_in, studs):
     return (first_in + (studs - 1) * typical_in) / 12
 
 
+def crosses(a, b, c, d):
+    """Segment a-b meets segment c-d."""
+    def ccw(p, q, r):
+        return (r[1] - p[1]) * (q[0] - p[0]) > (q[1] - p[1]) * (r[0] - p[0])
+    return ccw(a, c, d) != ccw(b, c, d) and ccw(a, b, c) != ccw(a, b, d)
+
+
+def edges(db, table):
+    """Polygon edges of SlabArea or SlabOpening rows, in feet."""
+    out = []
+    for (mp,) in db.execute(f"select MultiPoint from {table}"):
+        poly = [(px / FT, py / FT) for px, py in pts(mp)]
+        out += list(zip(poly, poly[1:] + poly[:1]))
+    return out
+
+
+def blocked(a, b, reach_ft, slab_edges, opening_edges):
+    """What stops a rail that starts at a (ft) and points along a->b, within reach_ft: 'opening', 'slab edge' or None."""
+    L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1.0
+    end = (a[0] + (b[0] - a[0]) / L * reach_ft, a[1] + (b[1] - a[1]) / L * reach_ft)
+    if any(crosses(a, end, c, d) for c, d in opening_edges):
+        return "opening"
+    if any(crosses(a, end, c, d) for c, d in slab_edges):
+        return "slab edge"
+    return None
+
+
 def rows(model: Path):
-    """One dict per stud rail set, as designed."""
+    """One dict per stud rail set, as designed. r['nontypical'] names what makes a column non-typical (the engineer's
+    rule, 2026-10-07: every rail around a column is the same type and length): a rail stopped short by an opening or
+    the slab edge, or rails that run into a different slab thickness. A rail the program made shorter with nothing
+    physical in the way is a program artefact, noted in r['artefact'] for the report only; the type covers it."""
     db = cr.connect(model)
     mesh = cr.Mesh(model)
+    slab_edges, opening_edges = edges(db, "SlabArea"), edges(db, "SlabOpening")
     out = []
     query = "select LocationPoint, Point0, Point1, StudCount, StudSpacingFirst, StudSpacingTypical, RailHeight, DesignedBy from SsrSet"
     for loc, p0, p1, count, first, typical, height, by in db.execute(query):
@@ -63,17 +95,24 @@ def rows(model: Path):
             raise SystemExit(f"({x:.0f},{y:.0f}): a user rail set; this reads the program's design only")
         studs = [int(n) for n in re.findall(r"\[(\d+)\]", count)]
         most = max(studs)
-        short = {}                                # rails with fewer studs than the rest: stud count -> faces
-        for (a, b), (c, d), n in zip(pts(p0), pts(p1), studs):
-            if n != most:
-                short.setdefault(n, set()).add(face(c - a, d - b)[0].upper())
-        comment = "; ".join(f"{'/'.join(sorted(f))} RAILS: {n} STUDS" for n, f in sorted(short.items())) or " "
-        first, typical = first / IN, typical / IN
+        rails = [((a / FT, b / FT), (c / FT, d / FT), n) for (a, b), (c, d), n in zip(pts(p0), pts(p1), studs)]
+        reach = max(math.hypot(c[0] - a[0], c[1] - a[1]) for a, c, _ in rails)       # the longest rail, ft
         slab = mesh.thickness(x, y)
         if slab is None:                          # column centre not in a mesh element: rail height plus cover
             slab = max(float(v) for v in re.findall(r"\[(-?[\d.]+)\]", height)) / IN + 2.125
+        nontypical, artefact = [], []
+        for a, c, n in rails:
+            f = face(c[0] - a[0], c[1] - a[1])[0].upper()
+            if n != most:
+                stop = blocked(a, c, reach, slab_edges, opening_edges)
+                (nontypical if stop else artefact).append(f"{f} rail {n} of {most} studs" + (f", stopped by {stop}" if stop else ""))
+            steps = {round(t) for k in range(1, 9) for t in [mesh.thickness(a[0] + (c[0] - a[0]) * k / 8, a[1] + (c[1] - a[1]) * k / 8)] if t is not None}
+            if steps and steps != {round(slab)}:
+                nontypical.append(f"{f} rail crosses a slab step ({round(slab)} to {'/'.join(str(s) for s in sorted(steps - {round(slab)}))} in)")
+        first, typical = first / IN, typical / IN
         out.append(dict(x=round(x), y=round(y), rails=len(studs), studs=most, first=first, typical=typical,
-                        slab=round(slab), comment=comment, ft=rail_length(first, typical, most)))
+                        slab=round(slab), comment=" ", ft=rail_length(first, typical, most),
+                        nontypical="; ".join(nontypical), artefact="; ".join(artefact)))
     return out
 
 
@@ -82,11 +121,20 @@ def covers(best, r):
             and r["ft"] <= best["ft"] + 0.005)
 
 
+NONTYP = "NON-TYPICAL"
+
+
 def propose(found, step_ft=1.25, tight_in=4.0, prefix="SR-"):
-    """Set r['mk'] on every row and r['controlling'] = 'Y' on one row per type. Returns [(controlling row, rows)]."""
+    """Set r['mk'] on every row and r['controlling'] = 'Y' on one row per type. Returns [(controlling row, rows)].
+    A row with r['nontypical'] set gets no type: its Mk is NON-TYPICAL and the engineer chooses the solution."""
     types = []                                    # [controlling row, rows]
-    for rails in sorted({r["rails"] for r in found}):
-        same = [r for r in found if r["rails"] == rails]
+    for r in found:
+        if r.get("nontypical"):
+            r["mk"] = NONTYP
+            r.pop("controlling", None)
+    typical = [r for r in found if not r.get("nontypical")]
+    for rails in sorted({r["rails"] for r in typical}):
+        same = [r for r in typical if r["rails"] == rails]
         for heavy in (True, False):               # heavy first, so a light group can borrow a heavier row
             left = [r for r in same if (r["typical"] < tight_in) == heavy]
             while left:
@@ -123,7 +171,7 @@ def propose(found, step_ft=1.25, tight_in=4.0, prefix="SR-"):
             r.pop("controlling", None)
     for best, _ in types:
         best["controlling"] = "Y"
-    found.sort(key=lambda r: (int(r["mk"][len(prefix):]), r["ft"], r["typical"], r["y"], r["x"]))
+    found.sort(key=lambda r: (int(r["mk"][len(prefix):]) if r["mk"].startswith(prefix) else 10 ** 6, r["ft"], r["typical"], r["y"], r["x"]))
     return [(b, g) for b, g in types]
 
 
@@ -155,7 +203,18 @@ def main(argv=None):
     types = propose(found, a.step, a.tight, a.prefix)
     a.rows.write_text(json.dumps(found, indent=1), encoding="utf-8")
     typed = studs_typed(types)
-    print(f"{len(found)} stud rail columns, {len(types)} proposed types; studs as designed {designed}, as typed {typed} ({(typed / designed - 1) * 100:+.0f}%)")
+    odd = [r for r in found if r.get("nontypical")]
+    print(f"{len(found)} stud rail columns, {len(odd)} non-typical, {len(types)} proposed types; "
+          f"studs as designed {designed}, as typed {typed} ({(typed / designed - 1) * 100:+.0f}%)")
+    if odd:
+        print(f"NON-TYPICAL, no type (every rail around a column must be the same length; the engineer picks the fix: drop cap, beam, moved opening):")
+        for r in odd:
+            print(f"  ({r['x']},{r['y']}): {r['rails']} rails, {r['studs']} studs @ {r['typical']:g} in as designed; {r['nontypical']}")
+    arte = [r for r in found if r.get("artefact") and not r.get("nontypical")]
+    if arte:
+        print("program artefacts, covered by the type with full rails (no note):")
+        for r in arte:
+            print(f"  ({r['x']},{r['y']}) {r['mk']}: {r['artefact']}")
     for c, g in types:
         print(f"  {c['mk']}: {len(g):2d} columns, {c['rails']} rails, {c['studs']} studs @ {c['typical']:g} in (first {c['first']:g}), {c['ft']:.2f} ft; "
               f"as designed {min(r['ft'] for r in g):.2f} to {max(r['ft'] for r in g):.2f} ft, "

@@ -62,6 +62,14 @@ Standing rules from the engineer, which apply in every session:
   column line or at midspan).
 - Capture stray single program bars into the user group beside them.
 - Callouts as `15#7 x 26'` (by count) and `#7 @12"` (by spacing).
+- **Stud rails: every rail around a column is the same type and length**
+  (engineer, 2026-10-07: "we can't have different length rails around a
+  column, it is non-typical"). A column whose program rails come out at two
+  lengths takes the standard type if the type covers every rail; where an
+  opening or edge inside the rail length forces a short rail, the column is
+  non-typical and gets another solution the engineer picks (drop cap, beam,
+  moved opening), never a schedule note. No custom solutions in the
+  schedule: "go up to the next category if needed".
 - The agent may Pause and Resume the Scripting Server without asking, and
   leaves it paused when handing back for review.
 - Save and sync into the production RAM model every 2 hours of Concept work;

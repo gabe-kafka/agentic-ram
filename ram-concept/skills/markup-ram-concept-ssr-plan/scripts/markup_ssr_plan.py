@@ -166,18 +166,24 @@ def datum_shift(rows, cols):
     return dx, dy, n
 
 
+def tag_width(text):
+    """30 pt fits "SR-n"; a longer Mk such as "DROP CAP 5'x5'x18 1/4"" gets a box to fit, 3 pt padding each side."""
+    return max(TAG_W, pymupdf.get_text_length(text, fontname="helv", fontsize=10) + 6.0)
+
+
 def spots(q):
     """Candidate tag rects for one column, in order. With a column symbol: touching its right edge, centred on it
     (the engineer's rule, 2026-10-07: the tag must read as that column's); then touching its left edge; then
     hanging under it. Without a symbol: right of the bubble, then below, then above, as the 2636_03 drafter did."""
+    w = q["w"]
     if q.get("sym"):
         x0, y0, x1, y1 = q["sym"]
         top = y1 - TAG_H                   # bottom edge level with the symbol's bottom: up out of the X:/Y: text below
         bx, by = q["bx"], q["by"]          # the column's own bubble, usually up-right of the symbol in the block
-        if x1 + GAP - BUBBLE_R < bx < x1 + GAP + TAG_W + BUBBLE_R:
+        if x1 + GAP - BUBBLE_R < bx < x1 + GAP + w + BUBBLE_R:
             top = max(top, by + BUBBLE_R + GAP)                 # slide down just enough to clear the bubble's circle
         top = min(top, y0)                                      # but never below top-aligned with the symbol
-        return [(x1 + GAP, top), (x0 - GAP - TAG_W, top), ((x0 + x1) / 2 - TAG_W / 2, y1 + GAP)]   # right, left, under
+        return [(x1 + GAP, top), (x0 - GAP - w, top), ((x0 + x1) / 2 - w / 2, y1 + GAP)]   # right, left, under
     bx, by = q["bx"], q["by"]
     return [(bx + TAG_DX, by + TAG_DY), (bx + TAG_DX - 8.0, by + TAG_DY + 16.0), (bx + TAG_DX - 8.0, by + TAG_DY - 16.0)]
 
@@ -187,8 +193,9 @@ def settle(placed, bubbles, symbols):
     Returns the count that did not get their first spot."""
     taken, moved = [], 0
     for q in placed:
+        q["w"] = tag_width(q["text"])
         if not q["ok"]:
-            taken.append((q["x0"], q["y0"], q["x0"] + TAG_W, q["y0"] + TAG_H))
+            taken.append((q["x0"], q["y0"], q["x0"] + q["w"], q["y0"] + TAG_H))
             continue
         own = q.get("sym")
 
@@ -197,7 +204,7 @@ def settle(placed, bubbles, symbols):
             return math.hypot(x - cx, y - cy) < BUBBLE_R
 
         for i, (x0, y0) in enumerate(spots(q)):
-            r = (x0, y0, x0 + TAG_W, y0 + TAG_H)
+            r = (x0, y0, x0 + q["w"], y0 + TAG_H)
             hit = any(circle_hits(r, x, y) for x, y in bubbles if (x, y) != (q["bx"], q["by"]))   # own bubble is handled in spots()
             hit = hit or any(r[0] < s[2] and s[0] < r[2] and r[1] < s[3] and s[1] < r[3] for s in symbols if s != own)
             hit = hit or any(r[0] < t[2] and t[0] < r[2] and r[1] < t[3] and t[1] < r[3] for t in taken)
@@ -299,7 +306,7 @@ def main(argv=None):
     out.insert_pdf(src, from_page=pno, to_page=pno)
     pg = out[0]
     for q in placed:
-        add_tag(pg, pymupdf.Rect(q["x0"], q["y0"], q["x0"] + TAG_W, q["y0"] + TAG_H), q["text"], a.author)
+        add_tag(pg, pymupdf.Rect(q["x0"], q["y0"], q["x0"] + q["w"], q["y0"] + TAG_H), q["text"], a.author)
     a.out.parent.mkdir(parents=True, exist_ok=True)
     out.save(a.out, garbage=3, deflate=True)
     print(f"wrote {a.out} ({len(placed)} tags, page {pno + 1} of {a.plan.name})")
