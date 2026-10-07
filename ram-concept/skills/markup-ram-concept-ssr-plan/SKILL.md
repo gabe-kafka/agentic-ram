@@ -75,6 +75,16 @@ output is a new one-page file.
 - **Misses.** A column with no label within 1 ft, or no bubble and no symbol,
   is listed under PROBLEMS and still tagged at its label with a `?`. Nothing is
   dropped.
+- **Non-typical columns** (the engineer's equal-length rule, in
+  `schedule-ram-concept-stud-rails`): a row whose Mk is `NON-TYPICAL` is
+  tagged in red with the fix written in its COMMENTS cell, for example
+  `DROP CAP 5'x5'x18 1/4" DP (RSD 10/7)`, so the drafter sees a condition
+  still being resolved, not a stud rail mark. The box widens to the text.
+- **Rerun on a previous output.** The engineer tidied the export folder and
+  the plot went with it; the tagged PDF still holds the page. Given as the
+  plan, this author's earlier tags are removed and other markups (the
+  signature stamp, the drafter's notes) stay; the output may be the same
+  file. Keep the plot anyway when you can: it is the clean record.
 
 ## Rules
 

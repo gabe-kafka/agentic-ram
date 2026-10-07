@@ -15,7 +15,12 @@ is not the work point, so the shift between them is taken from the data (the mos
 over every pairing, refined to the median). Each workbook column is then matched to the label within 1 ft; the
 bubble is the standalone integer nearest above that label. Columns that do not match, or whose bubble is not
 found, are reported and, unless --dry-run, tagged at the label with a "?" so nothing is silently dropped.
-Read-only on the workbook and the source PDF.
+
+A column whose Mk is NON-TYPICAL (the engineer's equal-length rule) is tagged in red with the fix written in its
+COMMENTS cell (for example "DROP CAP 5'x5'x18 1/4" DP"), or "NON-TYPICAL" if the cell is blank.
+<plan.pdf> may be a previous run's output: this author's earlier tags are removed from the page first, other
+markups (a signature stamp, the drafter's notes) are kept, and <out.pdf> may be that same file.
+Read-only on the workbook; the source PDF is read, and rewritten only when it is also the output.
 """
 import argparse
 import json
@@ -32,6 +37,7 @@ TAG_DX, TAG_DY = 21.0, -4.0        # fallback only: tag's top-left from the bubb
 GAP = 0.5                          # the tag's border touches the column symbol's edge
 BUBBLE_R = 9.0                     # column bubble circle, pt
 BLUE = (0, 0, 1)
+RED = (1, 0, 0)
 
 
 def feet(text):
@@ -52,6 +58,7 @@ def workbook_rows(path: Path, sheet):
     head = {str(c.value).strip(): c.column for c in ws[3] if c.value}
     mk_col = head.get("Mk")
     xy_col = next((c for h, c in head.items() if h.startswith("Column at")), None)
+    note_col = head.get("COMMENTS")
     if not mk_col or not xy_col:
         raise SystemExit(f"{names[0]}: need 'Mk' and 'Column at (x, y) ft' in row 3; found {list(head)}")
     rows = []
@@ -59,7 +66,11 @@ def workbook_rows(path: Path, sheet):
         mk, xy = ws.cell(r, mk_col).value, ws.cell(r, xy_col).value
         if mk and xy:
             x, y = (float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", str(xy))[:2])
-            rows.append(dict(row=r, mk=str(mk).strip(), x=x, y=y))
+            note = str(ws.cell(r, note_col).value or "").strip() if note_col else ""
+            mk = str(mk).strip()
+            # a NON-TYPICAL column (the engineer's equal-length rule) is tagged with its fix from the comment, in red
+            text = (note or mk) if mk.upper().startswith("NON-TYP") else mk
+            rows.append(dict(row=r, mk=mk, x=x, y=y, label=text, red=mk.upper().startswith("NON-TYP")))
     return names[0], rows
 
 
@@ -219,15 +230,18 @@ def settle(placed, bubbles, symbols):
 STYLE = "font: Helvetica 10pt; text-align:left; margin:0pt; line-height:11.5pt; color:#0000FF"
 
 
-def add_tag(page, rect, text, author):
-    """A Bluebeam-style text box: blue Helvetica 10 pt, 1 pt blue border (drawn in the text colour), no fill."""
-    a = page.add_freetext_annot(rect, text, fontsize=10, fontname="helv", text_color=BLUE, fill_color=None, border_width=1)
+def add_tag(page, rect, text, author, red=False):
+    """A Bluebeam-style text box: Helvetica 10 pt, 1 pt border drawn in the text colour, no fill. Blue for an SR
+    mark; red for a non-typical column's fix, so it reads as something still to resolve."""
+    colour = RED if red else BLUE
+    style = STYLE.replace("#0000FF", "#FF0000") if red else STYLE
+    a = page.add_freetext_annot(rect, text, fontsize=10, fontname="helv", text_color=colour, fill_color=None, border_width=1)
     a.set_info(title=author, subject="Text Box", content=text)
     a.update()
     doc = page.parent
-    doc.xref_set_key(a.xref, "DS", f"({STYLE})")
+    doc.xref_set_key(a.xref, "DS", f"({style})")
     rc = ('<?xml version="1.0"?><body xmlns="http://www.w3.org/1999/xhtml" xmlns:xfa="http://www.xfa.org/schema/xfa-data/1.0/" '
-          f'xfa:contentType="text/html" xfa:spec="2.2.0" style="{STYLE}"><p>{text}</p></body>')
+          f'xfa:contentType="text/html" xfa:spec="2.2.0" style="{style}"><p>{text}</p></body>')
     doc.xref_set_key(a.xref, "RC", f"({rc})")
     return a
 
@@ -266,18 +280,18 @@ def main(argv=None):
         where = f"({r['x']:.0f},{r['y']:.0f}) {r['mk']}"
         if resid > 1.0:
             problems.append(f"{where}: no plan label within 1 ft (nearest {resid:.1f} ft, bubble {c['bubble']})")
-            placed.append(dict(r, bubble=None, text=r["mk"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
+            placed.append(dict(r, bubble=None, text=r["label"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
             continue
         if key in used:
             problems.append(f"{where}: same plan column as {used[key]}")
         used[key] = r["mk"]
         if c["bubble"] is None and c["sym"] is None:
             problems.append(f"{where}: label matched but no bubble or column symbol near it; tagged at the label")
-            placed.append(dict(r, bubble=None, sym=None, text=r["mk"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
+            placed.append(dict(r, bubble=None, sym=None, text=r["label"] + "?", x0=c["px"] + 10, y0=c["py"] - 7, resid=resid, ok=False))
             continue
         if c["sym"] is None:
             problems.append(f"{where}: no column symbol near bubble {c['bubble']}; tagged beside the bubble instead")
-        placed.append(dict(r, bubble=c["bubble"] or "?", sym=c["sym"], bx=c["bx"], by=c["by"], text=r["mk"],
+        placed.append(dict(r, bubble=c["bubble"] or "?", sym=c["sym"], bx=c["bx"], by=c["by"], text=r["label"],
                            x0=c["bx"] + TAG_DX, y0=c["by"] + TAG_DY, resid=resid, ok=True))
 
     moved = settle(placed, [(c["bx"], c["by"]) for c in cols if c["bubble"]], [tuple(s) for s in symbols])
@@ -305,10 +319,21 @@ def main(argv=None):
     out = pymupdf.open()
     out.insert_pdf(src, from_page=pno, to_page=pno)
     pg = out[0]
+    old = [an for an in pg.annots() if an.type[1] == "FreeText" and an.info.get("title") == a.author]
+    for an in old:                      # a rerun on a previous markup: this author's earlier tags go, other markups stay
+        pg.delete_annot(an)
+    if old:
+        print(f"removed {len(old)} earlier tags by {a.author} from the source page; other markups kept")
     for q in placed:
-        add_tag(pg, pymupdf.Rect(q["x0"], q["y0"], q["x0"] + q["w"], q["y0"] + TAG_H), q["text"], a.author)
+        add_tag(pg, pymupdf.Rect(q["x0"], q["y0"], q["x0"] + q["w"], q["y0"] + TAG_H), q["text"], a.author, red=q.get("red", False))
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    out.save(a.out, garbage=3, deflate=True)
+    if a.out.resolve() == a.plan.resolve():       # writing over the source: finish the file first, then swap it in
+        tmp = a.out.with_name(a.out.stem + ".new.pdf")
+        out.save(tmp, garbage=3, deflate=True)
+        out.close(); src.close()
+        tmp.replace(a.out)
+    else:
+        out.save(a.out, garbage=3, deflate=True)
     print(f"wrote {a.out} ({len(placed)} tags, page {pno + 1} of {a.plan.name})")
     return 0
 
