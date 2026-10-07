@@ -418,8 +418,11 @@ permitted.
    along walls before simplifying; it must not suggest deleting them.
 9. **Two-way punching (stud rails).** `skills/design-ram-concept-stud-rails`
    took 2636 to all punching checks passing: openings by API, radius and
-   table export by GUI, status from the exported table. Grouping into a
-   schedule and setting rails to `User` are not built; nothing is tested.
+   table export by GUI, status from the exported table. The schedule is
+   `skills/schedule-ram-concept-stud-rails` (rows, proposed types, the
+   office workbook); setting rails to `User` is not built. One-way shear
+   is `skills/design-ram-concept-one-way-shear`. The five core workflows
+   are indexed in `ram-concept/AGENTS.md`.
 10. **Transition skill**: `transition_check.py` works and its verdicts are
     wired into both tools, but there is no `SKILL.md` and the yellow notch
     bars still show in Concept.

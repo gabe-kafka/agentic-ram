@@ -276,12 +276,14 @@ More from the reviewer:
 `scripts/inspect-punching-checks.py` reads the saved checks, search radii
 and generated rail geometry from a checkpoint without opening Concept.
 Draft tools for the openings, radii and status are in
-`skills/design-ram-concept-stud-rails`.
+`skills/design-ram-concept-stud-rails`; the schedule rows, proposed types
+and workbook are in `skills/schedule-ram-concept-stud-rails`.
 
 ## One-way shear in a two-way slab (office path)
 
 From a senior reviewer's walkthrough and the office's written process, both
-seen 2026-10-06. Not yet run by this repository on any model. Code
+seen 2026-10-06. Run on one model that day; the tools are in
+`skills/design-ram-concept-one-way-shear`. Code
 statements are the reviewer's; check ACI 318-19 before citing them.
 
 Why it is done this way: ACI 318-19 lowered one-way concrete shear capacity
@@ -333,7 +335,7 @@ Two models, to end up with as few stirrups as possible:
    override it (`CS Legs in Shear Reinforcement` on the span's `Column
    Strip` tab, or the stirrup's own properties). The API can do it:
    `rebar_layer.add_transverse_rebar` with legs, spacing, bar and
-   `DesignedBy.USER` (see `skills/design-ram-concept-stud-rails/scripts/
+   `DesignedBy.USER` (see `skills/design-ram-concept-one-way-shear/scripts/
    place_stirrups.py`).
 6. If a location fails: where `#L` was cut to the average, add legs. Where
    `#L` already fills the width, first check the column strip width was
@@ -371,6 +373,12 @@ its line.
 
 Do the stirrup zones first. The reviewer has rarely had to change stud
 rails for one-way shear.
+
+The engineer's own markup on the first job run here used: a red square on
+each stud rail column, a green stroke for "OK by d", a magenta box where
+user stirrups are wanted and a red check for a required location.
+`skills/design-ram-concept-one-way-shear` reads those marks off the PDF and
+draws the reading back as an SVG for him to confirm.
 
 A screening markup from an earlier job used: a red box for a stud rail
 location, a green stroke for "OK due to d distance", a red check for a

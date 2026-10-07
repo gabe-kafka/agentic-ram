@@ -1,6 +1,6 @@
 ---
 name: design-ram-concept-stud-rails
-description: Design a RAM Concept slab for two-way punching shear with stud rails (also called shear studs, shear rails or SSR) - assumed 6 in penetration at each stud rail column, pass/fail status from Concept's own table, search radius for cutoff-section errors, moving the assumed opening back for stress failures, until every punching check passes. Use when a user asks to design for two-way punching or two-way shear, or about shear studs, shear rails, stud rails, SSR, punching checks, punching openings, cutoff section errors or the search radius. Grouping the rails into a schedule and setting them to User are not built.
+description: Design a RAM Concept slab for two-way punching shear with stud rails (also called shear studs, shear rails or SSR) - assumed 6 in penetration at each stud rail column, pass/fail status from Concept's own table, search radius for cutoff-section errors, moving the assumed opening back for stress failures, until every punching check passes. Use when a user asks to design for two-way punching or two-way shear, or about shear studs, shear rails, stud rails, SSR, punching checks, punching openings, cutoff section errors or the search radius. The schedule is the next skill, schedule-ram-concept-stud-rails; setting the rails to User is not built.
 ---
 
 # Two-Way Punching Design with Stud Rails (RAM Concept)
@@ -11,7 +11,8 @@ shear rails. Concept calls the rails SSR. It is all this workflow.
 The office method is in `../../references/RAM_CONCEPT_GUI_NOTES.md`,
 "Two-way shear: stud rails". Read it first; this skill automates parts of
 it. Run end to end on one model (2636, 2026-10-05): 56 punching checks, all
-passing, 51 with stud rails. The schedule and rails to `User` are not built.
+passing, 51 with stud rails. The schedule is the next skill,
+`schedule-ram-concept-stud-rails`; rails to `User` are not built.
 
 ```text
 settings by hand -> stud_openings.py add --all -> calc
@@ -19,7 +20,7 @@ settings by hand -> stud_openings.py add --all -> calc
   -> cutoff errors: punch-radius.ps1 (10, then 12 ft) -> calc --no-mesh -> status again
   -> stress failures, and errors left at 12 ft: stud_openings.py move --back 1 into a TRIAL file
      -> calc -> status -> the engineer accepts or not, against the floor plan
-  -> schedule and rails to User: by hand (not built)
+  -> schedule: schedule-ram-concept-stud-rails; rails to User: by hand (not built)
 ```
 
 ## What is automated
@@ -107,9 +108,8 @@ radius changes go through the GUI, and deleting a check or setting rails to
 
 ## Not built
 
-- Reading the exported `Punching Check Design` table into the office stud
-  rail spreadsheet and grouping by rail length (1 to 1.5 ft steps), then
-  stud spacing.
+- The schedule is its own skill, `schedule-ram-concept-stud-rails` (rows
+  from the saved model, proposed types, the office workbook).
 - Setting rail sets to `User` to match the schedule.
 - Deleting checks.
 - Checking the floor plan above for plumbing at a column.

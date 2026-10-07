@@ -15,6 +15,30 @@ generated SSR geometry is available through `scripts/inspect-punching-checks.py`
 Live GUI attachment uses `skills/attach-ram-concept-api` and the official
 localhost API only.
 
+## Core slab design workflows
+
+The engineer's five, in the order they are done on a slab. Each is one
+skill; read its `SKILL.md` before acting. Design strips come first (beam
+strips: `skills/set-ram-concept-beam-strips`), and every step ends with the
+newest calculated model synced into the production RAM model.
+
+| # | Workflow | Skill | What the engineer decides |
+|---|---|---|---|
+| 1 | Bottom bending reinforcement | `skills/simplify-ram-concept-bottom-rebar` | the row of the groups-against-tons table |
+| 2 | Top bending reinforcement | `skills/simplify-ram-concept-top-rebar` | typical column counts; the band row |
+| 3 | Two-way punching reinforcement (stud rails, SSR) | `skills/design-ram-concept-stud-rails` | moving an assumed opening back, against the floor plan above |
+| 4 | Shear stud schedule | `skills/schedule-ram-concept-stud-rails` | the types |
+| 5 | One-way shear reinforcement | `skills/design-ram-concept-one-way-shear` | the marked-up PDF; the SVG reading goes back to him before any bar is drawn |
+
+- 1 and 2 share `skills/simplify-ram-concept-rebar` (the engine) and
+  `skills/clean-up-ram-concept-t-beams` (beam conditions).
+- 5 needs 1 and 2 done (one-way concrete shear capacity depends on the
+  flexural steel) and 3 passing (stud rail columns are set aside in 5).
+- 5 checks the stud rail columns through the rails and rarely changes them;
+  if it does, redo 4.
+- Not built anywhere yet: rails to `User` after 4, the final check with
+  program reinforcement off, beam reinforcement by the quick reference.
+
 ## Slab reinforcement optimization
 
 For any work on simplifying, grouping or reviewing slab rebar, read
@@ -69,7 +93,9 @@ Standing rules from the engineer, which apply in every session:
   every design strip at full width, then puts stirrups in the real model:
   6 in along the span, one leg per mat bar across the column strip.
   See `references/RAM_CONCEPT_GUI_NOTES.md`, "One-way shear in a two-way
-  slab". Never set the real model's strips to full width.
+  slab", and `skills/design-ram-concept-one-way-shear`. Never set the real
+  model's strips to full width. Show the engineer the SVG reading of his
+  markup before drawing any stirrup.
 - With the engineer at the PC, or a second Concept open, do not send real
   keystrokes or mouse clicks; use window messages addressed to the API
   session's own windows.

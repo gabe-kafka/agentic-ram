@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Place user stirrup zones for slab one-way shear, by the office rule.
 
-  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--around-beam-columns R]
+  python place_stirrups.py <saved.cpt> <out.cpt> --box X0 X1 Y0 Y1 [--box ...] [--boxes boxes.json]
+                           [--around-beam-columns R]
                            [--spacing 6] [--mat 12] [--bar "#4"] [--replace] [--dry]
 
 The program's stirrup regions in <saved.cpt> are joined into zones (shear_regions.chains: Concept draws one zone
@@ -12,6 +13,7 @@ span, legs = the span's column strip width / --mat (rounded, minimum 2). Then th
 Which zones are picked:
   --box X0 X1 Y0 Y1          the engineer's marked box (ft, 1 ft margin): every zone with a region inside it.
                              His mark stands; the d rule is not applied.
+  --boxes boxes.json         the same, from a file: a JSON list of [X0, X1, Y0, Y1] (markup_plan.py --boxes-out).
   --around-beam-columns R    a box of half-size R ft around every column that sits on a beam (engineer's rule,
                              2026-10-06: target beam columns in every direction). Here a zone is picked when the
                              screening classes it REQUIRED: it reaches past about d from the face it starts at.
@@ -33,6 +35,7 @@ session (the real model, strips on code slab). --dry prints the plan. After the 
 draws inside a picked zone means the user region is not enough.
 """
 import argparse
+import json
 import math
 import re
 import sys
@@ -160,6 +163,7 @@ def main(argv=None):
     p.add_argument("model", type=Path)
     p.add_argument("out", type=Path)
     p.add_argument("--box", type=float, nargs=4, action="append", metavar=("X0", "X1", "Y0", "Y1"))
+    p.add_argument("--boxes", type=Path, help="JSON list of [X0, X1, Y0, Y1] marked boxes (markup_plan.py --boxes-out)")
     p.add_argument("--around-beam-columns", type=float, metavar="R", help="also a box of half-size R ft around every column on a beam")
     p.add_argument("--spacing", type=float, default=6.0, help="stirrup spacing along the span, in (default 6; less where d/2 is less)")
     p.add_argument("--mat", type=float, default=12.0, help="leg spacing across the strip = mat bar spacing, in (default 12: one leg per mat bar)")
@@ -168,8 +172,10 @@ def main(argv=None):
     p.add_argument("--dry", action="store_true")
     p.add_argument("--port", type=int)
     a = p.parse_args(argv)
+    if a.boxes:
+        a.box = (a.box or []) + [[float(v) for v in b[:4]] for b in json.loads(a.boxes.read_text(encoding="utf-8"))]
     if not a.box and not a.around_beam_columns:
-        p.error("give --box and/or --around-beam-columns")
+        p.error("give --box, --boxes and/or --around-beam-columns")
     rows, notes = plan(a.model, a.box, a.spacing, a.mat, a.around_beam_columns)
     print(f"{len(rows)} zones -> one user region each, {a.bar}, from the support face:")
     for r in sorted(rows, key=lambda r: (round(r["my"]), r["mx"])):
