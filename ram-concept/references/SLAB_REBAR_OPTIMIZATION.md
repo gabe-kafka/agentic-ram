@@ -343,12 +343,27 @@ the missing part is the zone classifier and one driver for all four layers.
 ## Live session rules
 
 - Concept's API only works on a session started with `-apiServerWithGui`
-  on a separately named copy. The Scripting Server window's **Pause** blocks
+  (or headless, `-apiServer`) on a separately named copy. The Scripting Server window's **Pause** blocks
   every API call; the GUI is only usable while paused. The agent may Pause
   and Resume it without asking (standing permission from the user), and must
   leave it paused when handing back for review.
 - Resume and Pause through UI Automation `InvokePattern`, then confirm with
   an API call. Mouse clicks miss.
+- Work that needs no GUI (bars, stirrup regions, bar materials, calc
+  options, calc, save) runs headless: `Concept.start_concept(headless=True,
+  log_file_path=...)`, then `open_file` on the copy and `shut_down` at the
+  end. Nothing appears on the engineer's screen. Proven on 2636, 2026-10-07.
+- `calc_all` answers SUCCESS even when the calc stopped on an analysis
+  error. Always start with a log file and look for a line ending
+  `ANALYSIS ERROR:` (not `OPTIONAL ANALYSIS ERROR IGNORED:`). Concept writes
+  the log's tail as it exits. A stopped calc leaves no program reinforcement
+  and no detailed stirrups in the saved file, which reads like a clean
+  result if only the program bars are counted.
+- **Merging two engineers' copies**: diff every table of both against the
+  save they branch from (ignore the UID and sibling-link columns). Strips
+  cannot be written, so the base is the copy with the strip changes, and the
+  other engineer's change is replayed onto it through the API. Prove the
+  result table by table from the saved file.
 - While a run is active the user must keep hands off Concept. Each calc is
   about 2 minutes.
 - Design strips are not in the API. Strip edits are GUI-driven and proved

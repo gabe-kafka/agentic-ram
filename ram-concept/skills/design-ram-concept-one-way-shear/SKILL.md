@@ -61,6 +61,7 @@ A legend drawn with the same marks is skipped with `--ignore-left-of`.
 | Sort the program's stirrup zones | `shear_regions.py <model.cpt> [--plan out.png]` | read-only; over-counts on a full-width copy (below) |
 | Place user stirrup zones | `place_stirrups.py <saved.cpt> <out.cpt> --boxes boxes.json [--box X0 X1 Y0 Y1] [--around-beam-columns 10] [--replace] [--dry]` | 2636: 36 zones through the API, calc, checked. `--boxes` has only been run with `--dry` |
 | After the calc | `zones_check.py <calculated.cpt>` | 2636: 35 of 36 clean, one leftover found |
+| Before a calc on changed strips | `stirrup_collisions.py <saved.cpt>` | 2636: found the same two sections Concept stopped on; none in two clean files |
 | All strips to full width | `full-width-strips.ps1` | not proven end to end; the engineer did it by hand faster |
 
 `place_stirrups.py` needs an API session with the real model open, saved as
@@ -101,6 +102,15 @@ compare the list with the SVG.
 - A user zone is good when the program draws nothing more on its line.
   A leftover right at the column face next to a full zone is a judgement
   call for the engineer, not a reason to add legs everywhere.
+- **One design cross section holds one user stirrup region.** A second one
+  stops the calc: `<strip> contains multiple user transverse reinforcement
+  regions`. The zones belong to the strips they were placed on. When the
+  strips change (2636: the reviewer widened a column strip to 13 and 15 ft
+  and two neighbouring zones landed in it), run `stirrup_collisions.py`
+  before the calc and let the engineer say which zone stays.
+- Over the API a stopped calc still answers SUCCESS. Proof that it finished
+  is in the saved file: detailed stirrups (`IndividualTransverseBar`) are
+  there. None means it stopped; the reason is in Concept's log.
 - With the engineer at the PC, or a second Concept open, no real keystrokes
   or mouse clicks. The strip edit is quicker by hand than by script.
 
@@ -118,6 +128,6 @@ compare the list with the SVG.
 - `scripts/read_markup.py` (needs pymupdf), `scripts/markup_plan.py`,
   `scripts/shear_regions.py` (plan needs matplotlib),
   `scripts/place_stirrups.py`, `scripts/zones_check.py`,
-  `scripts/full-width-strips.ps1`.
+  `scripts/stirrup_collisions.py`, `scripts/full-width-strips.ps1`.
 - Tests: `ram-concept/tests/test_one_way_shear.py` (joining regions into
   zones, the page fit).
