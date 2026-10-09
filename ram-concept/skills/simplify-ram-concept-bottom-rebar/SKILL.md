@@ -81,6 +81,11 @@ group removed.
   shorter program bars. It never tightens spacing or adds a group for one.
   Peaks with no group within 5 ft, or already inside a group, stay listed
   for the engineer; most sit at slab edges or mesh spikes.
+- A one-off bar the engineer judges from the strength moment diagram
+  (`Layers > Rule Set Designs > Strength Design`, `Min Mx` / `Min My`):
+  if the plot shows no demand where it sits, it is ignored (2026-10-09).
+- Lengths in 5 ft steps (15, 20, 25, 30 ft), at most about 30 ft. The
+  bands still round to whole feet; round up when reporting.
 
 ## Report
 

@@ -14,6 +14,9 @@ from dataclasses import dataclass, replace
 BAR_WEIGHT = {"#3": 0.376, "#4": 0.668, "#5": 1.043, "#6": 1.502, "#7": 2.044,
               "#8": 2.670, "#9": 3.400, "#10": 4.303, "#11": 5.313}   # lb/ft
 
+SPACING = 1.0        # ft between the bars over a column: 12 in on centre (senior engineer, 2026-10-09)
+LENGTH_STEP = 5.0    # ft; bar lengths in 5 ft steps (15, 20, 25, 30) so the schedule reads as a few lengths
+
 
 @dataclass
 class ColumnBars:
@@ -41,15 +44,35 @@ class ColumnGroup:
     count: int
     length: float
     kind: str                     # "typical", "own" or "beam end"
-    a0: float
+    a0: float                     # the program bar's extent: the column strip, used to claim strays
     a1: float
     b0: float
     b1: float
     elevation: float
     size: str
+    spacing: float = 0.0          # ft between bars; 0 spreads the count over the strip (plans before 2026-10-09)
+    a: float | None = None        # column position across the bars
 
     def callout(self) -> str:
         return f"{self.count}{self.size} x {self.length:g}'"
+
+    def zone(self) -> tuple[float, float]:
+        """Where the bars are drawn across the strip: ``count * spacing`` wide, on the column.
+
+        The program spreads a count over the whole strip, so 10 bars in a 14 ft
+        strip come out at 17 in; the engineer narrows the extent until they
+        land at 12 in. The zone sits on the column and slides inside the strip
+        so an edge column's bars start at the edge. A count that does not fit
+        the strip at this spacing is centred on the strip and overhangs both
+        sides a little, which is how the engineer picks up a middle strip bar.
+        """
+        if not self.spacing:
+            return self.a0, self.a1
+        width = self.count * self.spacing
+        mid = (self.a0 + self.a1) / 2
+        if width < self.a1 - self.a0 and self.a is not None:
+            mid = min(max(self.a, self.a0 + width / 2), self.a1 - width / 2)
+        return mid - width / 2, mid + width / 2
 
     def pounds(self) -> float:
         return self.count * self.length * BAR_WEIGHT[self.size]
@@ -128,18 +151,18 @@ def capture(groups: list[ColumnGroup], strays, reach: float = 5.0):
     return out, changed, longer, left
 
 
-def _feet(length: float) -> int:
-    """Whole feet, rounding up; an inch or so over does not earn another foot."""
-    return math.ceil(length - 0.1)
+def _feet(length: float, step: float = LENGTH_STEP) -> int:
+    """Round up to the next ``step`` feet (5 ft steps by default); an inch or so over does not earn the next step."""
+    return int(math.ceil((length - 0.1) / step) * step)
 
 
 def tons(groups) -> float:
     return sum(g.pounds() for g in groups) / 2000.0
 
 
-def type_options(bars: list[ColumnBars], most: int = 4) -> list[dict]:
+def type_options(bars: list[ColumnBars], most: int = 4, step: float = LENGTH_STEP) -> list[dict]:
     """Cheapest schedule using 1..most callouts that covers every column (count and length)."""
-    data = sorted((c.count, _feet(c.length)) for c in bars)
+    data = sorted((c.count, _feet(c.length, step)) for c in bars)
     weight = BAR_WEIGHT[bars[0].size]
     out = []
     for k in range(1, min(most, len(data)) + 1):
@@ -156,23 +179,26 @@ def type_options(bars: list[ColumnBars], most: int = 4) -> list[dict]:
 
 
 def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b: True,
-          beam_ends: frozenset = frozenset(), own: frozenset = frozenset()) -> list[ColumnGroup]:
+          beam_ends: frozenset = frozenset(), own: frozenset = frozenset(),
+          spacing: float = SPACING, step: float = LENGTH_STEP) -> list[ColumnGroup]:
     """One group per column: the smallest typical count that covers it, else its own count.
 
-    A typical callout's length is the longest demand among its columns. Bars
-    stay centred on the program bars; where that would run off the slab the
-    bar keeps the program bar's end on that side. Columns in ``beam_ends``
-    keep their own count and length (kind "beam end") and do not stretch the
+    A typical callout's length is the longest demand among its columns,
+    rounded up to ``step`` feet. Bars stay centred on the program bars along
+    the span; where that would run off the slab the bar keeps the program
+    bar's end on that side. Across the span the bars sit at ``spacing`` on
+    the column (see ``ColumnGroup.zone``). Columns in ``beam_ends`` keep
+    their own count and length (kind "beam end") and do not stretch the
     typical callouts; neither do columns in ``own`` (kind "own").
     """
     typical = tuple(sorted(typical))
     apart = beam_ends | own
     kind_of = lambda c: None if c.column in apart else next((t for t in typical if c.count <= t), None)
-    lengths = {t: max((_feet(c.length) for c in bars if kind_of(c) == t), default=0) for t in typical}
+    lengths = {t: max((_feet(c.length, step) for c in bars if kind_of(c) == t), default=0) for t in typical}
     groups = []
     for c in bars:
         t = kind_of(c)
-        count, length = (t, lengths[t]) if t else (c.count, _feet(c.length))
+        count, length = (t, lengths[t]) if t else (c.count, _feet(c.length, step))
         mid_a, mid_b = (c.a0 + c.a1) / 2, (c.b0 + c.b1) / 2
         b0, b1 = mid_b - length / 2, mid_b + length / 2
         if not on_slab(mid_a, b0):
@@ -182,7 +208,7 @@ def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b:
             b0 = max(b1 - length, b0) if on_slab(mid_a, b1 - length) else c.b0
         kind = "typical" if t else ("beam end" if c.column in beam_ends else "own")
         groups.append(ColumnGroup(c.column, count, round(b1 - b0, 2), kind,
-                                  c.a0, c.a1, b0, b1, c.elevation, c.size))
+                                  c.a0, c.a1, b0, b1, c.elevation, c.size, spacing, c.a))
     return groups
 
 

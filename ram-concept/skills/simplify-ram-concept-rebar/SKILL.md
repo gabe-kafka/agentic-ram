@@ -110,7 +110,10 @@ written again.
   then read back that Pause is enabled. A mouse click on Resume can miss
   when another window covers it, and the run then fails as "paused".
 - Spacing menu 18/12/9/6/4 in, lengths and extents in whole feet, bar size =
-  the layer's dominant program size.
+  the layer's dominant program size. The office wants lengths in 5 ft
+  steps (15, 20, 25, 30 ft; senior engineer, 2026-10-09); the top tool
+  does that, the bands here do not yet, so round the band lengths up when
+  presenting them.
 - Demand above #7 at 4 in (about 1.8 in^2/ft) is an engineering flag, not a
   simplification problem: check loads, depth, or a bigger bar.
 

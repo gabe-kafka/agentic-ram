@@ -10,6 +10,20 @@ every column, by count, straight, centred on the column. So do not merge
 across columns: keep one group per column per direction and standardize the
 count. The trade-off is **number of typical callouts vs tons**.
 
+Three things the senior engineer does by hand to the result (call,
+2026-10-09), which the tool now does:
+
+- **Bars at 12 in on centre.** The program spreads a count over the whole
+  column strip, so 10 bars in a 14 ft strip come out at an odd 17 in. He
+  narrows the extent until the bars land at exactly 12 in (10#9 in a 10 ft
+  zone). The aim is a layout that displays well and reads the same at every
+  column.
+- **Lengths in 5 ft steps** (15, 20, 25, 30 ft), so the slab has a few bar
+  lengths instead of 12, 13.5 and 15 ft. He called this the tedious part
+  best left to the API.
+- **Nothing in the middle strip unless the moment plot asks for it** (see
+  "Middle strips" below).
+
 Setup, guards and the live-session rules are the engine's:
 `../simplify-ram-concept-rebar/SKILL.md`. Read it first.
 
@@ -45,11 +59,15 @@ One work folder for both directions, e.g. `rebar-simplify/top-columns/`.
 ```powershell
 python simplify_top_rebar.py options --work <dir>
 python simplify_top_rebar.py run     --work <dir> --typical 10 15
+python simplify_top_rebar.py run     --work <dir> --typical 10 15 --spacing 9
 ```
 
 `plan`, `apply` and `verify` run single steps. `run` without `--typical`
 applies the newest plan. `report` prints the last round again without a
-calc, for example after a new override.
+calc, for example after a new override. `--spacing` (inches, default 12)
+sets the bar spacing over every column; `--length-step` (feet, default 5)
+the length rounding. Plans written before 2026-10-09 have no spacing and
+still spread the count over the strip.
 
 ## How groups are made
 
@@ -59,9 +77,17 @@ calc, for example after a new override.
   needing more than the largest typical keeps its own count and length.
 - A typical callout's length is the longest demand among its columns, in
   whole feet. About an inch over does not earn another foot.
-- Each group keeps the program bar's centre, extent width and depth, so it
-  sits in the same strip and layer. The two directions are at different
-  depths (2636: longitude -2.56 in, latitude -1.56 in).
+- Each group keeps the program bar's centre along the span and its depth,
+  so it sits in the same strip and layer. The two directions are at
+  different depths (2636: longitude -2.56 in, latitude -1.56 in).
+- **Across the span the bars sit at 12 in on centre: the extent zone width
+  is count x 12 in** (`10#9` in a 10 ft zone, `15#9` in 15 ft), placed on
+  the column and kept inside the program's strip, so an edge column's bars
+  start at the edge. A count that does not fit the strip at 12 in is centred
+  on the strip and overhangs a little each side. The program's strip is
+  still remembered on the group; it decides which strays belong to it.
+- Lengths are the longest demand among a callout's columns, rounded up to
+  the next 5 ft. About an inch over does not earn the next step.
 - Where a longer typical bar would run off the slab, it keeps the program
   bar's end on that side.
 - Bars are by count (`count`), straight both ends.
@@ -76,6 +102,41 @@ calc, for example after a new override.
   are treated like any other column.
 - Any other location the engineer overrides (`t_beam_cleanup.py override`)
   is set aside the same way, over a column or not.
+
+## Spacing: 12 in, then 9 in
+
+The engineer's rule for a column where the program wants the bars tighter
+than 12 in: draw them at 12 in anyway, calc, and read what the program adds
+back at that column. Up to about 3 to 5 percent more (one bar on a 10 or 15
+bar group) is accepted, top bars especially. More than that, go to 9 in
+(`--spacing 9`) rather than odd spacings in between. The tool's `verify`
+lists what each column still needs; apply the rule from that list.
+
+## Middle strips
+
+Top bars away from the column line are questioned by every reviewer. Where
+the program wants them, in order:
+
+1. **Read the moment plot first.** `Layers > Rule Set Designs > Strength
+   Design`, the `Min Mx` and `Min My` plots at the bottom of the list. An
+   isolated column shows contours centred on it. Where two columns are
+   close, the contours merge into one shape between them: that shared
+   negative moment is a real middle strip demand. Contours that stay on the
+   columns mean the bar is a strip artefact.
+2. **A middle strip only 1 to 2 ft wide** is merged into its neighbour
+   (the strip is the problem, not the demand).
+3. **Wider than that, with merged contours:** extend the column group's zone
+   a little further, at the same 12 in spacing, so one or two more bars
+   reach into the middle strip. That is what the engineer did on 2636
+   instead of redrawing the strips. The tool's capture does this when the
+   bar sits in the group's strip (the count goes up and the zone widens by
+   one spacing per bar). It never thins the existing bars to reach it.
+4. Only if that fails, a middle strip band of its own, or wider column
+   strips lined up across the adjacent spans.
+
+Middle strip top bars are most often legitimate over beams (stiffer
+elements, see `../clean-up-ram-concept-t-beams`) and where columns are
+tightly spaced.
 
 ## Presenting options
 
@@ -132,9 +193,12 @@ groups first, then bands.
 - A peaking bar away from the columns goes to a column group only when at
   least half its width is inside that group's extent; otherwise the nearest
   band within 5 ft is stretched over it.
-- **A column group's extent is never widened.** A bar beside the extent is
-  the next strip's bar. Widening thins the column bars and the program asks
-  for more every round; on 2636 one column ran from 15#9 to 25#9.
+- **A column group's bars are never spread thinner to reach a bar.** A bar
+  beside the strip is the next strip's bar. On 2636, widening a group's
+  extent while holding its count thinned the column bars and the program
+  asked for more every round; one column ran from 15#9 to 25#9. Widening
+  by adding bars at the same 12 in spacing (the engineer's "extend the
+  region a little further") is the opposite case and is fine.
 - Still listed, not captured: bars just outside a column group's extent and
   bars inside a band. The zone rule in
   `../../references/SLAB_REBAR_OPTIMIZATION.md` is the fix and is not built.
@@ -161,13 +225,18 @@ detailing question.
 
 Per direction: the schedule with column counts, tons, real program demand
 left over columns (must be 0), and the count and tons of program bars not
-over a column.
+over a column. Say once that the bars are at 12 in on centre (or 9 in
+where that was needed) and that lengths are in 5 ft steps.
 
 ## Validation
 
 `python -m unittest ram-concept/tests/test_top_column_bars.py`. Live-proven
-on 2636 only, one run; check bar depth and placement in the `Top Long` and
-`Top Lat` plans on a new model.
+on 2636 only, one run, before the 12 in zone and 5 ft lengths were added
+(2026-10-09; unit-tested, not yet run live). On the first live run check in
+the `Top Long` and `Top Lat` plans, with the label set to `$S`, that a
+`10#9` group reads 12 in; if Concept divides the zone width by the count
+less one, the zone needs `(count - 1) x spacing` instead, and
+`ColumnGroup.zone` is the one place to change it.
 
 ## Bundled scripts
 

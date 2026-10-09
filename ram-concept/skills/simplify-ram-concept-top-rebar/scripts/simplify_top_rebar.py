@@ -4,9 +4,11 @@
 Both directions in one work folder. Uses the engine in
 ``../simplify-ram-concept-rebar/scripts`` for the live session and .cpt reads.
 
-Over columns (bars by count):
+Over columns (bars by count, 12 in on centre, lengths in 5 ft steps):
   options  per direction, the cheapest schedules using 1 to 4 callouts (from base.cpt)
   plan     write the next plan:  --typical 10 15   (heavier columns keep their own count)
+           --spacing 12 sets the bars' spacing; the zone width is count x spacing (10#9 -> 10 ft),
+           not the program's strip. --spacing 9 when the program still adds more than about 5% at 12.
   run      plan (when --typical is given) -> apply -> verify
 
 Away from columns (bars by spacing, like the bottom layers), once the column groups are in and calculated:
@@ -155,7 +157,7 @@ def cmd_options(a):
         if beam_bars:
             print("   " + beam_note(beam_bars, layer, overrides))
         print(" types   tons   schedule")
-        for row in tc.type_options(bars):
+        for row in tc.type_options(bars, step=a.length_step):
             text = "; ".join(f"{n}{size} x {length}' at {k}" for n, length, k in row["schedule"])
             print(f"   {row['types']}    {row['tons']:5.1f}   {text}")
 
@@ -164,7 +166,7 @@ def cmd_plan(a):
     base = a.work / "base.cpt"
     warn_beams(base)
     mesh = cr.Mesh(base)
-    state = dict(typical=sorted(a.typical), layers={})
+    state = dict(typical=sorted(a.typical), spacing=a.spacing, length_step=a.length_step, layers={})
     for name in LAYERS:
         layer = cr.Layer.parse(name)
         columns = columns_local(base, layer)
@@ -174,9 +176,10 @@ def cmd_plan(a):
         overrides = br.overrides(a.work.parent, name)
         bars, loose, _, beam_bars = gather(base, layer, overrides)
         on_slab = lambda p, q: mesh.thickness(*layer.to_plan(p, q)) is not None
-        groups = tc.typed(bars, tuple(a.typical), on_slab, tb.end_columns(base, layer))
+        groups = tc.typed(bars, tuple(a.typical), on_slab, tb.end_columns(base, layer),
+                          spacing=a.spacing / 12, step=a.length_step)
         state["layers"][name] = [asdict(g) for g in groups]
-        print(f"{name}: {len(groups)} columns, {tc.tons(groups):.1f} tons")
+        print(f"{name}: {len(groups)} columns, {tc.tons(groups):.1f} tons, bars at {a.spacing:g} in on centre")
         if beam_bars:
             print("   " + beam_note(beam_bars, layer, overrides))
         for callout, k in tc.schedule(groups):
@@ -295,7 +298,7 @@ def cmd_apply(a):
             b.delete()
         groups = [tc.ColumnGroup(**g) for g in state["layers"][name]]
         for g in groups:
-            draw(layer, g.a0, g.a1, g.b0, g.b1, g.size, g.elevation).count = g.count
+            draw(layer, *g.zone(), g.b0, g.b1, g.size, g.elevation).count = g.count
         bands = [rg.from_dict(b) for b in state.get("bands", {}).get(name, [])]
         for g in bands:
             draw(layer, g.a0, g.a1, g.b0, g.b1, band_s.size, state["band_elevation"][name]).spacing = g.spacing(band_s)
@@ -375,7 +378,9 @@ def capture_columns(a, state: dict, name: str, over_columns: list, peaks: list) 
                for g in grown] + fresh
     on_slab = lambda p, q: mesh.thickness(*layer.to_plan(p, q)) is not None
     retyped = {g.column: g for g in tc.typed(demands, tuple(state["typical"]), on_slab,
-                                             tb.end_columns(base, layer), own=frozenset(longer))}
+                                             tb.end_columns(base, layer), own=frozenset(longer),
+                                             spacing=state.get("spacing", 0.0) / 12,
+                                             step=state.get("length_step", 1.0))}
     final = [retyped[g.column] if g.column in changed else g for g in groups] + [retyped[c.column] for c in fresh]
     for old in groups:
         new = retyped[old.column]
@@ -459,6 +464,9 @@ def main(argv=None):
     p.add_argument("command", choices=list(commands))
     p.add_argument("--work", required=True, type=Path, help="work folder holding base.cpt (no user top bars, calculated)")
     p.add_argument("--typical", type=int, nargs="+", help="typical bar counts, e.g. 10 15")
+    p.add_argument("--spacing", type=float, default=12.0,
+                   help="plan: inches between the bars over a column; the zone width is count x spacing (0: the program's strip)")
+    p.add_argument("--length-step", type=float, default=5.0, help="plan, options: bar lengths rounded up to this many feet")
     p.add_argument("--band-size", default="#9", help="bar size for the scattered bands, e.g. #7")
     p.add_argument("--option", type=int, nargs=2, metavar=("LONG", "LAT"),
                    help="bands: table row for top-long and top-lat (default: the knee row)")

@@ -102,6 +102,13 @@ Conditions 4 and 5 are to be replaced by the office beam rules in
 Until the tool follows these, report its beam groups as a first pass and
 show the single-layer maximum beside each count.
 
+## Top bars in the middle strip beside a beam
+
+Middle strip top bars are questioned everywhere else, but over and beside a
+beam they are the common legitimate case: the beam is the stiff element and
+draws negative moment into the strip (senior engineer, 2026-10-09). Confirm
+with the strength `Min Mx` / `Min My` plot before chasing or waiving them.
+
 ## Flag to the engineer
 
 - More bars than fit one layer in the beam web (2636: 13 to 15 #7 in a

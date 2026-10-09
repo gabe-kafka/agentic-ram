@@ -60,6 +60,13 @@ Standing rules from the engineer, which apply in every session:
   column line or at midspan).
 - Capture stray single program bars into the user group beside them.
 - Callouts as `15#7 x 26'` (by count) and `#7 @12"` (by spacing).
+- Top bars over a column at **12 in on centre**: the zone width is count x
+  12 in (10#9 in 10 ft), not the program's strip. If the program still
+  adds more than about 5 percent there, 9 in. Bar lengths in 5 ft steps
+  (15, 20, 25, 30 ft). Senior engineer, 2026-10-09.
+- No top bars in a middle strip unless the strength `Min Mx` / `Min My`
+  plot shows the moment contours merging between two columns; a 1 to 2 ft
+  middle strip is merged away instead.
 - The agent may Pause and Resume the Scripting Server without asking, and
   leaves it paused when handing back for review.
 - Save and sync into the production RAM model every 2 hours of Concept work;

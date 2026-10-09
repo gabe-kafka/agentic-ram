@@ -49,42 +49,81 @@ class AssignTests(unittest.TestCase):
 class TypedTests(unittest.TestCase):
     def test_smallest_typical_count_that_covers_else_own_count(self) -> None:
         bars = [column_bars(4, 9.5, 0), column_bars(10, 11.6, 1), column_bars(12, 12.2, 2), column_bars(22, 10.4, 3)]
-        groups = tc.typed(bars, (10, 15))
+        groups = tc.typed(bars, (10, 15), step=1)
         self.assertEqual([(g.count, g.length, g.kind) for g in groups],
                          [(10, 12, "typical"), (10, 12, "typical"), (15, 13, "typical"), (22, 11, "own")])
         self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 2), ("15#9 x 13'", 1), ("22#9 x 11'", 1)])
 
+    def test_lengths_round_up_to_5_ft_steps(self) -> None:
+        bars = [column_bars(4, 9.5, 0), column_bars(10, 11.6, 1), column_bars(12, 12.2, 2), column_bars(22, 10.4, 3)]
+        groups = tc.typed(bars, (10, 15))
+        self.assertEqual(tc.schedule(groups), [("10#9 x 15'", 2), ("15#9 x 15'", 1), ("22#9 x 15'", 1)])
+        self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,))[0].length, 15)
+        self.assertEqual(tc.typed([column_bars(9, 15.3)], (10,))[0].length, 20)
+
     def test_beam_end_columns_keep_their_own_count_and_length(self) -> None:
         bars = [column_bars(8, 11.6, 0), column_bars(9, 16.8, 1), column_bars(28, 21.8, 2)]
-        groups = tc.typed(bars, (10, 15), beam_ends=frozenset({1, 2}))
+        groups = tc.typed(bars, (10, 15), beam_ends=frozenset({1, 2}), step=1)
         self.assertEqual([(g.count, g.length, g.kind) for g in groups],
                          [(10, 12, "typical"), (9, 17, "beam end"), (28, 22, "beam end")])
         self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 1), ("9#9 x 17' (beam end)", 1), ("28#9 x 22' (beam end)", 1)])
 
     def test_lengthened_columns_keep_their_own_callout(self) -> None:
         bars = [column_bars(8, 11.6, 0), column_bars(9, 22.6, 1)]
-        groups = tc.typed(bars, (10, 15), own=frozenset({1}))
+        groups = tc.typed(bars, (10, 15), own=frozenset({1}), step=1)
         self.assertEqual([(g.count, g.length, g.kind) for g in groups], [(10, 12, "typical"), (9, 23, "own")])
 
     def test_an_inch_over_does_not_earn_another_foot(self) -> None:
-        self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,))[0].length, 15)
+        self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,), step=1)[0].length, 15)
 
     def test_bar_keeps_the_program_end_at_a_slab_edge(self) -> None:
         edge = tc.ColumnBars(0, 5, 50, 6, 0, 10, 50, 56, -2.56, "#9")       # slab ends at b = 50
         long_one = column_bars(8, 12, 1)
-        groups = tc.typed([edge, long_one], (10,), on_slab=lambda a, b: b >= 50)
+        groups = tc.typed([edge, long_one], (10,), on_slab=lambda a, b: b >= 50, step=1)
         self.assertEqual((groups[0].b0, groups[0].b1), (50, 62))
 
     def test_tons_follow_count_length_and_bar_weight(self) -> None:
         groups = tc.typed([column_bars(10, 12)], (10,))
-        self.assertAlmostEqual(tc.tons(groups), 10 * 12 * 3.4 / 2000)
+        self.assertAlmostEqual(tc.tons(groups), 10 * 15 * 3.4 / 2000)
+
+
+class ZoneTests(unittest.TestCase):
+    """The bars sit at 12 in on centre: the zone is count x spacing wide, not the program's strip."""
+
+    def test_ten_bars_at_12_in_take_a_10_ft_zone_on_the_column(self) -> None:
+        strip = tc.ColumnBars(0, 7, 50, 10, 0, 14, 44, 56, -2.56, "#9")        # column mid-strip, 14 ft strip
+        g = tc.typed([strip], (10,))[0]
+        self.assertEqual((g.a0, g.a1, g.spacing), (0, 14, 1.0))                 # the strip is kept for capture
+        self.assertEqual(g.zone(), (2, 12))
+
+    def test_an_edge_column_zone_starts_at_the_edge(self) -> None:
+        edge = tc.ColumnBars(0, 0.5, 50, 10, 0, 14, 44, 56, -2.56, "#9")
+        self.assertEqual(tc.typed([edge], (10,))[0].zone(), (0, 10))
+
+    def test_a_count_wider_than_the_strip_overhangs_both_sides(self) -> None:
+        narrow = tc.ColumnBars(0, 3, 50, 10, 0, 8, 44, 56, -2.56, "#9")
+        self.assertEqual(tc.typed([narrow], (10,))[0].zone(), (-1, 9))
+
+    def test_tighter_spacing_narrows_the_zone(self) -> None:
+        strip = tc.ColumnBars(0, 7, 50, 12, 0, 14, 44, 56, -2.56, "#9")
+        self.assertEqual(tc.typed([strip], (12,), spacing=0.75)[0].zone(), (2.5, 11.5))
+
+    def test_no_spacing_spreads_over_the_strip_as_before(self) -> None:
+        strip = tc.ColumnBars(0, 7, 50, 10, 0, 14, 44, 56, -2.56, "#9")
+        self.assertEqual(tc.typed([strip], (10,), spacing=0)[0].zone(), (0, 14))
+        self.assertEqual(tc.ColumnGroup(0, 10, 12, "typical", 0, 14, 44, 56, -2.56, "#9").zone(), (0, 14))
+
+    def test_a_captured_bar_widens_the_zone_by_one_spacing(self) -> None:
+        g = tc.ColumnGroup(0, 10, 12, "typical", 0, 14, 44, 56, -2.56, "#9", 1.0, 7)
+        grown, _, _, _ = tc.capture([g], [demand(3, 6, 48, 52, 1)])
+        self.assertEqual((grown[0].count, grown[0].zone()), (11, (1.5, 12.5)))
 
 
 class OptionTests(unittest.TestCase):
     def test_more_callouts_never_cost_more(self) -> None:
         bars = [column_bars(n, 10 + n % 3, i) for i, n in enumerate([2, 4, 5, 8, 8, 9, 10, 12, 14, 27])]
         rows = tc.type_options(bars)
-        self.assertEqual(rows[0]["schedule"], [(27, 12, 10)])
+        self.assertEqual(rows[0]["schedule"], [(27, 15, 10)])          # 12 ft demand -> 15 ft callout
         tons = [r["tons"] for r in rows]
         self.assertEqual(tons, sorted(tons, reverse=True))
         self.assertEqual(sum(k for _, _, k in rows[2]["schedule"]), 10)
@@ -124,7 +163,7 @@ class CaptureTests(unittest.TestCase):
         groups, changed, longer, _ = tc.capture([self.group(10, 0), self.group(15, 1, a0=30.0, a1=40.0, b0=43.5, b1=56.5)],
                                                 [demand(3, 6, 48, 52, 1)])
         bars = [tc.ColumnBars(g.column, 5, 50, g.count, g.a0, g.a1, g.b0, g.b1, g.elevation, g.size) for g in groups]
-        typed = tc.typed(bars, (10, 15), own=frozenset(longer))
+        typed = tc.typed(bars, (10, 15), own=frozenset(longer), step=1)
         self.assertEqual([g.callout() for g in typed], ["15#9 x 13'", "15#9 x 13'"])
 
 

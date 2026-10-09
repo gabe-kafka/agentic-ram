@@ -13,6 +13,11 @@ builds on `ram-concept/skills/simplify-ram-concept-rebar/SKILL.md`.
 - Show the typical-callout options per direction, written as count then
   size (`10#9 x 12' at 52 columns`). The engineer picks the typical counts.
 - Do not group across columns. Heavy columns keep their own count; flag them.
+- Bars at 12 in on centre (zone width = count x 12 in; `--spacing 9` only
+  when the program adds more than about 5 percent at 12). Lengths in 5 ft
+  steps.
+- Middle strip top bars only where the strength `Min Mx` / `Min My` plot
+  merges between two columns; ask the engineer to read it.
 - Start the `rebar-dashboard` preview so the Browser pane shows Working or
   Ready for human review.
 - Report the schedule, tons, anything still needed over a column, and the

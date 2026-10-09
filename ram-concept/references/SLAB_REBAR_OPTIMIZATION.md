@@ -5,9 +5,10 @@ another machine. It is the durable record of how the pieces fit, which rules
 are settled, and what is not built yet. Skill `SKILL.md` files hold the
 run-level detail; job numbers and results live in `eng-agent`.
 
-Last updated 2026-10-05, after the first full pass on one transfer slab
-(job 2636) and the senior engineer's review of it. Everything here is
-proven on that one model only, and the review changes several rules.
+Last updated 2026-10-09, after the first full pass on one transfer slab
+(job 2636), the senior engineer's review of it, and his walkthrough of the
+refined top bars. Everything here is proven on that one model only, and
+the review changes several rules.
 
 ## Goal
 
@@ -124,10 +125,13 @@ Until this is built, two stopgaps exist: `tc.capture` (a column group takes
 bars inside its own extent) and `merge-bands` (neighbouring bands up to two
 spacing steps apart merge when it costs under 500 lb).
 
-**Never widen a column group's extent to reach a bar.** A bar beside the
-extent is the next strip's bar. Widening thins the column bars where they
-are needed and the program asks for more every round (2636: a 15#9 group
-ran to 25#9 in four rounds before this was caught).
+**Never spread a column group's bars thinner to reach a bar.** A bar
+beside the strip is the next strip's bar. Widening the extent while holding
+the count thins the column bars where they are needed and the program asks
+for more every round (2636: a 15#9 group ran to 25#9 in four rounds before
+this was caught). Since 2026-10-09 the top groups hold 12 in spacing, so
+reaching a bar means one more bar and one more foot of zone, which is what
+the engineer does by hand.
 
 ## Reviewer rules (senior review of the first pass, 2026-10-05)
 
@@ -158,14 +162,17 @@ rules outrank what the tools do today; the Gaps list says what is not built.
 - **Avoid top bars in the middle strip and at mid-span.** They are sometimes
   needed where two columns are close and share the negative moment, but the
   final reviewer questions every one. Widen the column strips to line up
-  across adjacent spans instead.
+  across adjacent spans instead. The test for "really needed" is the
+  strength `Min Mx` / `Min My` moment plot: merged contours between two
+  columns, yes; contours centred on each column, no (see the walkthrough
+  below).
 - Bottom bars merge wherever needed. Top bars are merged with care, to stay
   out of middle strips.
 - Additional bottom bars are needed only at column strips in most cases.
   That means one group per column strip, not one group across several
   (clarified 2026-10-06).
-- Bar lengths are kept to similar round values (a bar was stretched to
-  exactly 25 ft).
+- Bar lengths are kept to similar round values, in 5 ft steps: 15, 20,
+  25, 30 ft (a bar was stretched to exactly 25 ft).
 - Reinforce locally at corners and over walls, not one bar segment across a
   whole section.
 - A callout is normally at most **30 ft** long. Do not stretch one past
@@ -211,6 +218,56 @@ Nothing here automates it.
 
 - Delete the punching checks at columns on beams.
 - Read status from Concept's own tables, not from whether rails exist.
+
+## Senior engineer's walkthrough of the refined top bars (call, 2026-10-09)
+
+He went through the 2636 top bars he had refined by hand and said what he
+changed and why. These are the hand steps the top tool is to reproduce.
+
+**Bars over columns at 12 in on centre.** The program spreads a count over
+the whole column strip, which gives uneven, odd spacings (10 bars across a
+wide strip). He narrows the bar extent until the bars are at exactly 12 in:
+10 bars in a 10 ft zone. Built into `top_columns.py` the same day: the
+zone width is count x spacing, on the column, inside the strip
+(`ColumnGroup.zone`; `--spacing`).
+
+**12 in first, then 9 in.** Where the program generates bars at, say,
+11 in, he sets 12 in, runs the counts, and judges: about 3 to 5 percent
+over is accepted, top bars especially; more than that, down to 9 in. Not
+built as a rule; `verify` lists what is left per column.
+
+**Bar lengths in 5 ft increments.** 15, 20, 25, 30 ft rather than 12,
+13.5, 15. Tedious by hand, "suited to the API". Built: lengths round up to
+5 ft steps (`--length-step`). The 30 ft cap (Gaps, item 3) still is not.
+
+**Middle strip top bars.** Default to not providing them and verify from
+the results. Where the program wants them:
+
+- The check is the strength rule set design's `Min Mx` and `Min My` plots
+  (bottom of the Strength Design list): a topographic map of negative
+  moment. An isolated column has contours centred on it; where columns are
+  tightly spaced the circles merge between the columns, and that merged
+  shape is the sign that middle strip top bars are needed there.
+- Design strips only 1 to 2 ft wide: merge them into the neighbour; the
+  bars go away.
+- Anything wider: either widen the column strip, or extend the column
+  group's region a little further so a bar or two reach into the middle
+  strip, rather than redrawing the strips. He did the latter on 2636.
+- Where they are legitimately common: over beams (stiffer elements) and
+  where columns are close enough to share the negative moment.
+
+**One-off bars.** For a single program bar, bottom bars especially, look at
+the strength moment diagram where it sits and decide whether the bar is
+wanted or can be ignored. Some bars on 2636 were left in only for time's
+sake; the default is to leave them out and check the results.
+
+**A walled room is an opening.** A square set of walls enclosing a
+mechanical chase (no slab inside) was modelled as a slab opening to the
+full corners of the walls, and the top bars around it revised.
+
+**Why.** Condensing the top bars is so the reinforcement displays well and
+stays consistent from column to column; a few bar lengths and one spacing
+read better than an exact fit.
 
 ## Office standards for additional reinforcement (team meeting, 2026-10-06)
 
@@ -394,11 +451,14 @@ permitted.
    knee for fewer bands. The review wants almost no top bars in middle
    strips. Rework: fix strips first, widen column strips, let the column
    groups take what falls in them, and band only what is left at walls and
-   corners, locally.
+   corners, locally. The engineer's test for a real middle strip demand is
+   the `Min Mx` / `Min My` plot (walkthrough above); reading it from the
+   saved model is not built, so the agent asks him to look.
 2. **Zone rule** (above), using `SpanSegmentStrip`. It is the mechanism for
    item 1 and for bottom midspan. Stray singles are decided by it too.
 3. **Callout length cap of 30 ft.** `max_length` is 40 ft and absorbing
-   stretches groups further.
+   stretches groups further. Top column lengths are in 5 ft steps since
+   2026-10-09; the bottom bands still round to whole feet.
 4. **Step-downs.** `apply` splits a whole band into two anchored sets at a
    real transition. Wanted: the anchored pair only at the step, continuous
    bars in the main slab.

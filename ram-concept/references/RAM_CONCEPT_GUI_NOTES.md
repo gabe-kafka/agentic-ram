@@ -114,13 +114,25 @@ From a working session with a senior reviewer, 2026-10-06.
 - Demand and capacity plots: `Layers > Rule Set Designs > Strength Design`.
   Right-click, `Visible Objects`, reinforcement tab, to show bar extents.
   The capacity plotted is for the whole strip, not per foot.
+- Is a middle strip top bar real? The `Min Mx` and `Min My` plots at the
+  bottom of the Strength Design list are a topographic map of negative
+  moment. Contours centred on each column: the column bars carry it.
+  Contours that merge between two close columns: top bars are needed
+  there, by widening the column strip or extending the column group's
+  zone (senior engineer, 2026-10-09). The same plots decide whether a
+  one-off program bar, bottom bars especially, is wanted or ignored.
+- Top bars over a column at 12 in on centre: a count-based group spreads
+  its bars over its extent zone width, so narrow the zone to count x 12 in
+  (10 bars, 10 ft). Set the label to `$S` to read the spacing back. If the
+  program then adds more than about 5 percent at that column, go to 9 in.
 - User bars alone: `Criteria > Calc Options`, general tab, last checkbox,
   `Check capacity of user reinforcement without designing`, then calc. No
   program bars are generated. Uncheck and calc again to get them back.
 - Change a program bar: `Selection Properties`, designed by `User`; then
   quantity by spacing, and `Anchored` at an end as needed.
 - Make a bar a round length: stretch tool on its end, then type a relative
-  move such as `r0,1.9`.
+  move such as `r0,1.9`. The office rounds to 5 ft steps (15, 20, 25,
+  30 ft), so the slab has a few bar lengths.
 - Copy bars with the move tool's copy and stretch into place. Plain copy
   and paste lands on top of the original.
 - `Calc Partial` keeps its checkbox settings until Concept is closed. No
@@ -272,6 +284,9 @@ More from the reviewer:
 - A 2 ft mesh helps some conditions and roughly doubles the element count.
 - After import from Modeler, review Mesh Input: openings and exterior slab
   edges.
+- A room enclosed by walls with no slab inside (a mechanical chase) is a
+  slab opening drawn to the full corners of the walls, not a slab panel;
+  revise the top bars around it afterwards (2636, 2026-10-09).
 
 `scripts/inspect-punching-checks.py` reads the saved checks, search radii
 and generated rail geometry from a checkpoint without opening Concept.
