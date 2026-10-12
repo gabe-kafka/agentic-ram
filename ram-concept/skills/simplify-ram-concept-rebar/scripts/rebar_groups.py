@@ -29,7 +29,8 @@ class Settings:
     peak_bars: int = 2                    # demand this small ...
     peak_length: float = 5.0              # ... and this short is "peaking"
     reach: float = 3.0                    # ft a group may grow to absorb a leftover
-    peak_reach: float = 5.0               # ft a group may stretch to cover a peaking bar
+    peak_reach: float = 5.0               # ft a group may stretch to cover a peaking bar beside it
+    continue_reach: float = 15.0          # ft across the bars a group is continued over a peak in line with it
     development: float = 2.0              # ft extra length past an absorbed leftover
 
 
@@ -230,17 +231,45 @@ def _covers(g: Group, d: Demand, tol: float = 0.1) -> bool:
 
 
 def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple[list[Group], list[Demand]]:
-    """Stretch the cheapest adjacent group over each peaking bar; never tighten or add a group for a peak."""
-    left = []
-    for d in peaks:
-        if any(_covers(g, d) for g in groups):
-            d.tag = f"{d.tag} inside a group".strip()
-            left.append(d)
-            continue
-        best = None
+    """Continue a group over the peaking bars in line with it; never tighten or add a group for a peak.
+
+    Office rule (2636 building 1, 2026-10-12): a band is continued across the bars, more bars at the
+    same spacing and length, over every small zone that lies in line with it (within `peak_reach` of
+    its bar length, up to `continue_reach` across). A zone beside a band is covered within
+    `peak_reach` both ways. What no band can be continued over stays program bars: the small edge
+    cases at a slab edge, a notch or an opening. Passes repeat, so a chain of zones is picked up.
+    """
+    left, todo = [], list(peaks)
+    while todo:
+        done = []
+        for d in todo:
+            if any(_covers(g, d) for g in groups):
+                d.tag = f"{d.tag} inside a group".strip()
+                left.append(d)
+                done.append(d)
+                continue
+            best = _continued(groups, d, s)
+            if best is not None:
+                groups[groups.index(best[0])] = best[1]
+                done.append(d)
+        if not done:
+            break
+        todo = [d for d in todo if d not in done]
+    for d in todo:
+        d.tag = f"{d.tag} no band in line within {s.continue_reach:g} ft across, {s.peak_reach:g} ft along".strip()
+        left.append(d)
+    return groups, left
+
+
+def _continued(groups: list[Group], d: Demand, s: Settings):
+    """The group that covers the peak with the least extra steel, and its continued shape; None if no group reaches."""
+    best = None
+    if True:
         for g in groups:
             ga, gb = _gaps(g, d)
-            if ga > s.peak_reach or gb > s.peak_reach:
+            in_line = gb <= s.peak_reach and ga <= s.continue_reach
+            beside = ga <= s.peak_reach and gb <= s.peak_reach
+            if not (in_line or beside):
                 continue
             grown = _tidy(Group(min(g.a0, d.a0), max(g.a1, d.a1),
                                 min(g.b0, d.b0 - s.development), max(g.b1, d.b1 + s.development),
@@ -250,12 +279,7 @@ def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple
             extra = grown.pounds(s) - g.pounds(s)
             if best is None or extra < best[0]:
                 best = (extra, g, grown)
-        if best is None:
-            d.tag = f"{d.tag} no group within {s.peak_reach:g} ft".strip()
-            left.append(d)
-            continue
-        groups[groups.index(best[1])] = best[2]
-    return groups, left
+    return (best[1], best[2]) if best else None
 
 
 def from_dict(d: dict) -> Group:

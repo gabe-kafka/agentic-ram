@@ -96,12 +96,26 @@ class RebarGroupTests(unittest.TestCase):
         self.assertEqual((groups[0].a0, groups[0].a1), (0, 24))
         self.assertEqual(groups[0].spacing(self.s), 18)
 
+    def test_band_is_continued_over_a_chain_of_zones_in_line(self) -> None:
+        s = rg.Settings()
+        band = rg.Group(40, 60, 80, 100, 2)                       # 20 ft wide, bars 20 ft long
+        chain = [demand(42, 46, 82, 96, 1), demand(44, 48, 84, 98, 1)]   # beside is not the case: in line, further across
+        chain = [demand(60 + 8, 60 + 12, 82, 96, 1), demand(60 + 20, 60 + 24, 84, 98, 1)]
+        groups, left = rg.absorb_peaks([band], chain, s)
+        self.assertEqual(left, [])
+        self.assertEqual((groups[0].a0, groups[0].a1, groups[0].step), (40, 84, 2))   # continued across, same spacing
+        self.assertEqual((groups[0].b0, groups[0].b1), (80, 100))                     # bar length unchanged
+        far = demand(60 + 40, 60 + 44, 82, 96, 1)                 # 40 ft across: no band in line
+        off = demand(50, 54, 120, 124, 1)                         # 20 ft past the bar ends: not in line
+        groups, left = rg.absorb_peaks([band], [far, off], s)
+        self.assertEqual(len(left), 2)
+
     def test_peak_inside_or_far_from_groups_is_left_listed(self) -> None:
         host = rg.seed([demand(0, 20, 0, 16, 14)], self.s)[0]
         inside, far = demand(5, 9, 4, 9, 1), demand(60, 64, 4, 9, 1)
         groups, left = rg.absorb_peaks([host], [inside, far], self.s)
         self.assertEqual(groups, [host])
-        self.assertEqual([d.tag for d in left], ["inside a group", "no group within 5 ft"])
+        self.assertEqual([d.tag for d in left], ["inside a group", "no band in line within 15 ft across, 5 ft along"])
 
     def test_patch_over_a_band_is_dropped_to_one_spacing(self) -> None:
         s = rg.Settings()
