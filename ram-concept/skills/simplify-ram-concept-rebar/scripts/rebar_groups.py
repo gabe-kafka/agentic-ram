@@ -87,7 +87,8 @@ def step_for(density: float, s: Settings) -> int:
 
 
 def is_peak(d: Demand, s: Settings) -> bool:
-    return d.count <= s.peak_bars and d.length <= s.peak_length
+    """Demand too small to band: peak_bars or fewer, and no longer than peak_length (0: any length)."""
+    return d.count <= s.peak_bars and (s.peak_length <= 0 or d.length <= s.peak_length)
 
 
 def _union(g: Group, h: Group) -> Group:

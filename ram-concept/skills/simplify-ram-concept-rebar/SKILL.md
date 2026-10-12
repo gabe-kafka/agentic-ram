@@ -65,6 +65,8 @@ the row marked `<- knee` (fewest groups before a step costs more than 0.5
 tons per group removed). `baseline --reuse-calc` skips the calc when the layer
 has no user bars and the model was just calculated. `--absorb-peaks` (on
 `absorb` and `run`) also stretches the nearest group over peaking bars.
+`options --peak-bars N --peak-length L` says what counts as peaking (default
+2 bars, 5 ft; `--peak-length 0` for any length, the bottom bar rule).
 `apply`, `verify` and `absorb` run single steps. Each calc takes about 2
 minutes; Calc All through the API raises no dialogs.
 

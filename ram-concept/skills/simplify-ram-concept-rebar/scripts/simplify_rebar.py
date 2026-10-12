@@ -16,6 +16,8 @@ model there, so the original file is never written.
   run       apply -> verify -> absorb until no real leftovers (or max rounds)
 
   --absorb-peaks also stretches the nearest group over peaking bars (absorb, run).
+  --peak-bars / --peak-length (options) say what counts as peaking; --peak-length 0
+            leaves every 1 or 2 bar zone as program bars whatever its length.
 """
 
 from __future__ import annotations
@@ -210,7 +212,7 @@ def cmd_options(a):
     base = a.work / "base.cpt"
     mesh = cr.Mesh(base)
     demands = cr.bars(base, layer, cr.PROGRAM)
-    s = rg.Settings(size=cr.dominant_size(demands))
+    s = rg.Settings(size=cr.dominant_size(demands), peak_bars=a.peak_bars, peak_length=a.peak_length)
     marks = load_transitions(a.verdicts, layer)
     slab_demands, beam_bars = split_beam(demands, cr.beam_rects(base, layer))
     beam_groups = [br.beam_group(d) for d in beam_bars]
@@ -425,6 +427,11 @@ def main(argv=None):
                    help="default row: closest to --target-groups within --max-tons, or the knee of the table")
     p.add_argument("--knee-tons-per-group", type=float, default=0.5,
                    help="knee: stop merging when a step costs more tons per group removed than this")
+    p.add_argument("--peak-bars", type=int, default=2,
+                   help="options: program demand of this many bars or fewer is peaking: listed, not banded (kept in the plan)")
+    p.add_argument("--peak-length", type=float, default=5.0,
+                   help="options: ... and no longer than this many ft; 0 for any length (office rule for bottom bars: "
+                        "1 or 2 bar zones stay program bars)")
     p.add_argument("--reuse-calc", action="store_true",
                    help="baseline: keep the current calc when the layer has no user bars")
     p.add_argument("--plan", type=int, help="apply this plan number (default latest)")

@@ -77,10 +77,13 @@ group removed.
   bars by count, and a mid-span leftover adds to that count on the next
   absorb. Bars reaching a beam end are listed as the engineer's call, or as
   `no bar called out (override: reason)` once the engineer overrides them.
-- `--absorb-peaks` stretches the nearest group over 1 to 2 bar, 5 ft or
-  shorter program bars. It never tightens spacing or adds a group for one.
-  Peaks with no group within 5 ft, or already inside a group, stay listed
-  for the engineer; most sit at slab edges or mesh spikes.
+- **A 1 or 2 bar zone stays program bars, whatever its length** (office
+  rule, 2026-10-12, 2636 building 1 through the connector): `options
+  --peak-length 0`. Those zones are listed as peaking, never banded, and
+  `run` goes without `--absorb-peaks` unless the engineer asks for a group
+  stretched over them. With `--absorb-peaks` the nearest group is stretched;
+  it never tightens spacing or adds a group for one, and peaks with no group
+  within 5 ft, or already inside a group, stay listed.
 
 ## Report
 
