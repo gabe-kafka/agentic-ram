@@ -105,17 +105,27 @@ class RebarGroupTests(unittest.TestCase):
         self.assertEqual(left, [])
         self.assertEqual((groups[0].a0, groups[0].a1, groups[0].step), (40, 84, 2))   # continued across, same spacing
         self.assertEqual((groups[0].b0, groups[0].b1), (80, 100))                     # bar length unchanged
-        far = demand(60 + 40, 60 + 44, 82, 96, 1)                 # 40 ft across: no band in line
+        far = demand(60 + 60, 60 + 64, 82, 96, 1)                 # 60 ft across: no band in line
         off = demand(50, 54, 120, 124, 1)                         # 20 ft past the bar ends: not in line
         groups, left = rg.absorb_peaks([band], [far, off], s)
         self.assertEqual(len(left), 2)
 
+    def test_continuation_never_crosses_a_beam_and_a_spike_is_a_peak(self) -> None:
+        s = rg.Settings()
+        band = rg.Group(40, 60, 80, 100, 2)
+        zone = demand(70, 74, 82, 96, 1)                         # in line, 10 ft across
+        beam = (64, 66, 60, 120)                                 # a beam between them, along the bars
+        self.assertEqual(rg.absorb_peaks([band], [zone], s, beams=[beam])[1], [zone])
+        self.assertEqual(rg.absorb_peaks([band], [zone], s)[1], [])
+        self.assertTrue(rg.is_peak(demand(0, 3, 0, 3.5, 3), s))       # 3 bars x 3.5 ft: a spike
+        self.assertFalse(rg.is_peak(demand(0, 3, 0, 8, 3), s))        # 3 bars x 8 ft: real demand
+
     def test_peak_inside_or_far_from_groups_is_left_listed(self) -> None:
         host = rg.seed([demand(0, 20, 0, 16, 14)], self.s)[0]
-        inside, far = demand(5, 9, 4, 9, 1), demand(60, 64, 4, 9, 1)
+        inside, far = demand(5, 9, 4, 9, 1), demand(90, 94, 4, 9, 1)
         groups, left = rg.absorb_peaks([host], [inside, far], self.s)
         self.assertEqual(groups, [host])
-        self.assertEqual([d.tag for d in left], ["inside a group", "no band in line within 15 ft across, 5 ft along"])
+        self.assertEqual([d.tag for d in left], ["inside a group", "no band in line within 50 ft across, 5 ft along"])
 
     def test_patch_over_a_band_is_dropped_to_one_spacing(self) -> None:
         s = rg.Settings()

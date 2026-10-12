@@ -382,7 +382,7 @@ def cmd_absorb(a):
     groups += rg.seed(unplaced, s)
     peak_note = ""
     if a.absorb_peaks:
-        groups, left = rg.absorb_peaks(groups, peaks, s)
+        groups, left = rg.absorb_peaks(groups, peaks, s, rects)
         peak_note = f", peaks stretched over {len(peaks) - len(left)} of {len(peaks)}"
         for d in left:
             print("  peak left", describe(d, layer))

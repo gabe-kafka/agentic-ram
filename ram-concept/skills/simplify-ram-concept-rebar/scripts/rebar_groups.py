@@ -28,9 +28,11 @@ class Settings:
     max_class_jump: int = 1               # spacing steps two merged groups may differ by
     peak_bars: int = 2                    # demand this small ...
     peak_length: float = 5.0              # ... and this short is "peaking"
+    spike_bars: int = 3                   # a short spike of this many bars or fewer ...
+    spike_length: float = 5.0             # ... and this short is peaking too: an edge case, never a band seed
     reach: float = 3.0                    # ft a group may grow to absorb a leftover
     peak_reach: float = 5.0               # ft a group may stretch to cover a peaking bar beside it
-    continue_reach: float = 15.0          # ft across the bars a group is continued over a peak in line with it
+    continue_reach: float = 50.0          # ft across the bars a group is continued over a peak in line with it (the engineer went 50 ft on 2636)
     development: float = 2.0              # ft extra length past an absorbed leftover
 
 
@@ -88,8 +90,10 @@ def step_for(density: float, s: Settings) -> int:
 
 
 def is_peak(d: Demand, s: Settings) -> bool:
-    """Demand too small to band: peak_bars or fewer, and no longer than peak_length (0: any length)."""
-    return d.count <= s.peak_bars and (s.peak_length <= 0 or d.length <= s.peak_length)
+    """Demand too small to band: peak_bars or fewer (no longer than peak_length; 0: any length), or a short spike."""
+    small = d.count <= s.peak_bars and (s.peak_length <= 0 or d.length <= s.peak_length)
+    spike = d.count <= s.spike_bars and d.length <= s.spike_length
+    return small or spike
 
 
 def _union(g: Group, h: Group) -> Group:
@@ -230,14 +234,16 @@ def _covers(g: Group, d: Demand, tol: float = 0.1) -> bool:
     return d.a0 >= g.a0 - tol and d.a1 <= g.a1 + tol and d.b0 >= g.b0 - tol and d.b1 <= g.b1 + tol
 
 
-def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple[list[Group], list[Demand]]:
+def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings, beams: list = ()) -> tuple[list[Group], list[Demand]]:
     """Continue a group over the peaking bars in line with it; never tighten or add a group for a peak.
 
     Office rule (2636 building 1, 2026-10-12): a band is continued across the bars, more bars at the
     same spacing and length, over every small zone that lies in line with it (within `peak_reach` of
     its bar length, up to `continue_reach` across). A zone beside a band is covered within
-    `peak_reach` both ways. What no band can be continued over stays program bars: the small edge
-    cases at a slab edge, a notch or an opening. Passes repeat, so a chain of zones is picked up.
+    `peak_reach` both ways. A continuation never crosses a concrete beam (`beams`: (a0, a1, b0, b1)
+    rectangles in the local axes); the beam has its own bars. What no band can be continued over
+    stays program bars: the small edge cases at a slab edge, a notch or an opening. Passes repeat,
+    so a chain of zones is picked up.
     """
     left, todo = [], list(peaks)
     while todo:
@@ -248,7 +254,7 @@ def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple
                 left.append(d)
                 done.append(d)
                 continue
-            best = _continued(groups, d, s)
+            best = _continued(groups, d, s, beams)
             if best is not None:
                 groups[groups.index(best[0])] = best[1]
                 done.append(d)
@@ -261,7 +267,18 @@ def absorb_peaks(groups: list[Group], peaks: list[Demand], s: Settings) -> tuple
     return groups, left
 
 
-def _continued(groups: list[Group], d: Demand, s: Settings):
+def _touches(a0, a1, b0, b1, beam) -> bool:
+    ba0, ba1, bb0, bb1 = beam
+    return min(a1, ba1) - max(a0, ba0) > 0.5 and min(b1, bb1) - max(b0, bb0) > 0.5
+
+
+def _crosses(g: Group, grown: Group, beams: list) -> bool:
+    """True when the grown group reaches a beam the group did not already touch."""
+    return any(_touches(grown.a0, grown.a1, grown.b0, grown.b1, beam) and not _touches(g.a0, g.a1, g.b0, g.b1, beam)
+               for beam in beams)
+
+
+def _continued(groups: list[Group], d: Demand, s: Settings, beams: list = ()):
     """The group that covers the peak with the least extra steel, and its continued shape; None if no group reaches."""
     best = None
     if True:
@@ -274,7 +291,7 @@ def _continued(groups: list[Group], d: Demand, s: Settings):
             grown = _tidy(Group(min(g.a0, d.a0), max(g.a1, d.a1),
                                 min(g.b0, d.b0 - s.development), max(g.b1, d.b1 + s.development),
                                 max(g.step, step_for(d.density(), s)), g.members, g.notes))
-            if grown.b1 - grown.b0 > s.max_length:
+            if grown.b1 - grown.b0 > s.max_length or _crosses(g, grown, beams):
                 continue
             extra = grown.pounds(s) - g.pounds(s)
             if best is None or extra < best[0]:
