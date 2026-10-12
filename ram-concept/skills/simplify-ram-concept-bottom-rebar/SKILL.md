@@ -85,6 +85,14 @@ group removed.
   it never tightens spacing or adds a group for one, and peaks with no group
   within 5 ft, or already inside a group, stay listed.
 
+## Stubborn leftovers
+
+A real leftover that comes back unchanged after a group was grown over it is
+not a band problem: on 2636 building 1 bot-lat it was 3 bars x 3.5 ft at the
+south-west slab edge, a mesh spike at a notch. `run` stops as soon as a
+round's real leftovers equal the last round's and lists them as `stubborn`;
+the engineer decides (usually: not needed, or a bar by hand).
+
 ## Report
 
 Per layer: program-only groups and tons, the row picked, finished groups and

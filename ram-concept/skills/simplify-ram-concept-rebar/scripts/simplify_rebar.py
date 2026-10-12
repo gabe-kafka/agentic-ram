@@ -403,12 +403,22 @@ def cmd_absorb(a):
 
 
 def cmd_run(a):
+    layer, before = cr.Layer.parse(a.layer), None
     for _ in range(a.rounds):
         cmd_apply(a)
         real, peaks = cmd_verify(a)
         if not real and not (a.absorb_peaks and peaks):
             print("no real leftovers; done")
             return
+        now = sorted(describe(d, layer) for d in real)
+        if now == before:
+            # Growing the group over it did not clear it: a mesh spike at a slab edge or notch, not a
+            # band problem. Another calc would only repeat; the engineer decides (2636 bot-lat, 2026-10-12).
+            print("the same leftovers came back after absorbing them; stopped, the engineer's call:")
+            for line in now:
+                print("  stubborn", line)
+            return
+        before = now
         if not cmd_absorb(a):
             return
     print(f"stopped after {a.rounds} rounds; review the last round")
