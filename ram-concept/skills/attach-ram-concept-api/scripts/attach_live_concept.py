@@ -264,6 +264,14 @@ def probe_concept_sessions() -> list[dict[str, Any]]:
                 "api_port": api_port,
                 "api_ping": ping if api_port else None,
                 "api_ready": api_port is not None,
+                # Started with the API and showing its Scripting Server window, but not answering: the
+                # server is paused (its Resume button is up) or busy with a long call. The port is the
+                # command line's; the listener belongs to http.sys (pid 4), so listen_ports never has it.
+                "api_paused": (
+                    api_port is None
+                    and process["started_with_api"]
+                    and any(title == "Scripting Server" for title in window_titles)
+                ),
             }
         )
     return sessions
@@ -353,7 +361,10 @@ def relaunch_hint(session: dict[str, Any] | None = None) -> str:
     if session and session.get("open_cpt") and "\\" in str(session["open_cpt"]):
         file_arg = f' --file "{session["open_cpt"]}"'
     return (
-        "This RAM Concept window is not serving the API. "
+        ("This RAM Concept window was started with the API but its Scripting Server is paused or busy: "
+         "resume it (scripting-server.ps1 -Resume) and try again.\n"
+         if session and session.get("api_paused") else "")
+        + "This RAM Concept window is not serving the API. "
         "Close it, then start an API-enabled GUI:\n"
         "  python ram-concept\\scripts\\attach-live-concept.py --start-gui"
         f"{file_arg}"
@@ -448,13 +459,17 @@ def render_markdown(payload: dict[str, Any]) -> str:
             lines.append("No Concept.exe process is running.")
             return "\n".join(lines)
         for session in payload["sessions"]:
-            title = session.get("open_cpt") or (
-                (session.get("window_titles") or ["untitled"])[0]
-            )
-            status = "API ready" if session.get("api_ready") else "no API"
+            titles = [t for t in (session.get("window_titles") or []) if t != "Scripting Server"]
+            title = session.get("open_cpt") or (titles or ["untitled"])[0]
+            if session.get("api_ready"):
+                status, port = "API ready", session.get("api_port")
+            elif session.get("api_paused"):
+                status, port = "API paused or busy: resume the Scripting Server (scripting-server.ps1 -Resume)", session.get("command_port")
+            else:
+                status, port = "no API", None
             lines.append(
                 f"- pid `{session['pid']}` / {status}"
-                + (f" / port `{session['api_port']}`" if session.get("api_port") else "")
+                + (f" / port `{port}`" if port else "")
                 + f" / {title}"
             )
         return "\n".join(lines)
