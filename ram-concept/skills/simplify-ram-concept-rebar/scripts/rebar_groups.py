@@ -143,9 +143,12 @@ def options(demands: list[Demand], s: Settings, budgets: tuple = (0, 100, 250, 5
     plans, groups = [], seed(demands, s)
     for budget in budgets:
         groups = merge_until(groups, s, budget)
-        plans.append(dict(budget_lb=budget, groups=len(groups),
-                          tons=round(sum(g.pounds(s) for g in groups) / 2000.0, 1),
-                          plan=[asdict(g) for g in groups]))
+        plan = dict(budget_lb=budget, groups=len(groups),
+                    tons=round(sum(g.pounds(s) for g in groups) / 2000.0, 1),
+                    plan=[asdict(g) for g in groups])
+        if plans and (plans[-1]["groups"], plans[-1]["tons"]) == (plan["groups"], plan["tons"]):
+            continue                      # a budget that merged nothing more: not a row of its own
+        plans.append(plan)
     return plans
 
 
