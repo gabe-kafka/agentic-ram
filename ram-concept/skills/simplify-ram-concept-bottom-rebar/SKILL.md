@@ -5,38 +5,16 @@ description: Replace RAM Concept program bottom bars in both directions with a f
 
 # Simplify Bottom Rebar (RAM Concept)
 
-Bottom bars are zone bars: wide bands that merge cheaply. The job is to pick
-how many bands the engineer wants and what that costs in steel.
+**Shipped.** The team runs this through the JT-ENG connector: skill
+`bottom-bars`, tools `bottom_bars_*`. The order of the steps, the office rules and
+what the engineer decides live there (`jt-eng-connector/skills/bottom-bars/SKILL.md`),
+and lessons from jobs go there first.
 
-This skill is the bottom-face workflow. The engine (scripts, grouping rules,
-setup, guards) is `../simplify-ram-concept-rebar`; read its `SKILL.md` first.
+What stays here is canonical and vendored into the connector by
+`tools/vendor.py`: none of its own: the engine in ../simplify-ram-concept-rebar (simplify_rebar.py bot-long / bot-lat). Change scripts here, commit, then run the
+vendor script in the connector.
 
-```text
-bot-long: baseline -> options table -> engineer picks -> run
-bot-lat:  baseline -> options table -> engineer picks -> run
-```
-
-## Check first
-
-- Sliver strips create bottom bars that are not real demand: a mat bar may
-  not fall inside a very narrow section. Fix the strip (boundary strip set
-  to manual, or merge two adjacent strips); do not chase the bars.
-- **Do not delete the design spans over exterior walls.** On 2636 they were
-  deleted before the first pass and the reviewer flagged it: bars show as
-  needed beside the wall and nothing shows where the strip is gone. Concept
-  also stops the neighbouring strip halfway to the wall, so the half-bay
-  beside the wall drops out of design in that direction.
-- Additional bottom bars are needed only at column strips in most cases.
-  Keep a callout to about 30 ft.
-- One spacing per region (office standard, 2026-10-06): the average or the
-  worst-case spacing over the whole region, not a 12 to 18 in transition
-  inside it. Where the mat is at 12 in, the additional bars are at 12 in
-  over the whole area. Fewer bands beat lower tonnage.
-
-## Run (from the engine's `scripts/`)
-
-One work folder per layer and per option tried, in the job folder, e.g.
-`rebar-simplify/bot-long/`, `rebar-simplify/bot-lat-opt7/`.
+## Developer run, from `scripts/`
 
 ```powershell
 python simplify_rebar.py baseline --layer bot-long --work <dir>
@@ -44,56 +22,3 @@ python simplify_rebar.py options  --layer bot-long --work <dir> --pick knee
 python simplify_rebar.py options  --layer bot-long --work <dir> --option N
 python simplify_rebar.py run      --layer bot-long --work <dir> --absorb-peaks
 ```
-
-Then the same for `bot-lat`.
-
-- `baseline --reuse-calc` skips the calc when the layer has no user bars and
-  the open model was just calculated (the usual case for the second layer).
-- Trying another row: use a new work folder with a copy of `base.cpt`. `run`
-  always applies the newest plan in its folder.
-
-## Picking the row
-
-Show the whole table every time; the engineer picks. The `<- knee` row is the
-suggestion: the fewest groups before a step costs more than 0.5 tons per
-group removed.
-
-- Table tons are starting values. Absorbing leftovers and peaking bars adds
-  about 2 to 5 tons; say so before the run.
-- On 2636 the engineer went at or past the knee both times:
-
-| Layer | Program only | Picked | Finished |
-|---|---|---|---|
-| bot-long | 130 groups, 7.2 t | option 5: 33 groups, 16.8 t | 30 groups, 19.3 t |
-| bot-lat | 121 groups, 6.8 t | option 7: 21 groups, 22.7 t | 20 groups, 27.7 t |
-
-## Bottom-specific rules
-
-- Bar size is the layer's dominant program size (#7 on 2636).
-- Depth follows the thinnest slab under each group. A band set for 16 in
-  slab that crosses 12 in slab sits below the soffit and gets no credit.
-- Bars inside a concrete beam are not banded. The rules are in
-  `../clean-up-ram-concept-t-beams`: mid-span bars become the beam's own
-  bars by count, and a mid-span leftover adds to that count on the next
-  absorb. Bars reaching a beam end are listed as the engineer's call, or as
-  `no bar called out (override: reason)` once the engineer overrides them.
-- **A 1 or 2 bar zone stays program bars, whatever its length** (office
-  rule, 2026-10-12, 2636 building 1 through the connector): `options
-  --peak-length 0`. Those zones are listed as peaking, never banded, and
-  `run` goes without `--absorb-peaks` unless the engineer asks for a group
-  stretched over them. With `--absorb-peaks` the nearest group is stretched;
-  it never tightens spacing or adds a group for one, and peaks with no group
-  within 5 ft, or already inside a group, stay listed.
-
-## Stubborn leftovers
-
-A real leftover that comes back unchanged after a group was grown over it is
-not a band problem: on 2636 building 1 bot-lat it was 3 bars x 3.5 ft at the
-south-west slab edge, a mesh spike at a notch. `run` stops as soon as a
-round's real leftovers equal the last round's and lists them as `stubborn`;
-the engineer decides (usually: not needed, or a bar by hand).
-
-## Report
-
-Per layer: program-only groups and tons, the row picked, finished groups and
-tons, real leftovers (must be 0), and the peaking bars left with locations.
