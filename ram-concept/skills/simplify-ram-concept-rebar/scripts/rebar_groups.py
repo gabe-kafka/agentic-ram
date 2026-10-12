@@ -32,7 +32,8 @@ class Settings:
     spike_length: float = 5.0             # ... and this short is peaking too: an edge case, never a band seed
     reach: float = 3.0                    # ft a group may grow to absorb a leftover
     peak_reach: float = 5.0               # ft a group may stretch to cover a peaking bar beside it
-    continue_reach: float = 50.0          # ft across the bars a group is continued over a peak in line with it (the engineer went 50 ft on 2636)
+    continue_reach: float = 5.0           # ft across the bars a group is continued over a peak in line with it;
+                                          # the bottom bar run passes 50 (the engineer went 50 ft on 2636), top bands keep 5
     development: float = 2.0              # ft extra length past an absorbed leftover
 
 

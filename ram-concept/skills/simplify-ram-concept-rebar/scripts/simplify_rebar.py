@@ -212,7 +212,8 @@ def cmd_options(a):
     base = a.work / "base.cpt"
     mesh = cr.Mesh(base)
     demands = cr.bars(base, layer, cr.PROGRAM)
-    s = rg.Settings(size=cr.dominant_size(demands), peak_bars=a.peak_bars, peak_length=a.peak_length)
+    s = rg.Settings(size=cr.dominant_size(demands), peak_bars=a.peak_bars, peak_length=a.peak_length,
+                    continue_reach=a.continue_reach)
     marks = load_transitions(a.verdicts, layer)
     slab_demands, beam_bars = split_beam(demands, cr.beam_rects(base, layer))
     beam_groups = [br.beam_group(d) for d in beam_bars]
@@ -442,6 +443,9 @@ def main(argv=None):
     p.add_argument("--peak-length", type=float, default=5.0,
                    help="options: ... and no longer than this many ft; 0 for any length (office rule for bottom bars: "
                         "1 or 2 bar zones stay program bars)")
+    p.add_argument("--continue-reach", type=float, default=50.0,
+                   help="options: ft across the bars a band is continued over a small zone in line with it when "
+                        "absorbing peaks (bottom bar rule: 50; 5 only covers a zone beside the band)")
     p.add_argument("--reuse-calc", action="store_true",
                    help="baseline: keep the current calc when the layer has no user bars")
     p.add_argument("--plan", type=int, help="apply this plan number (default latest)")
