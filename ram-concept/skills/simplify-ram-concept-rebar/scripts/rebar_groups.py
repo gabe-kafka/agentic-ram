@@ -119,9 +119,38 @@ def seed(demands: list[Demand], s: Settings) -> list[Group]:
     return [_tidy(Group(d.a0, d.a1, d.b0, d.b1, step_for(d.density(), s))) for d in demands]
 
 
-def merge_until(groups: list[Group], s: Settings, budget_lb: float) -> list[Group]:
-    """Greedily merge the pair adding the least steel while that cost stays under budget."""
+def _overlap(g: Group, h: Group) -> bool:
+    ga, gb = _gaps(g, h)
+    return ga < -1e-6 and gb < -1e-6
+
+
+def one_spacing(groups: list[Group]) -> list[Group]:
+    """One spacing per region (office rule, 2026-10-12): groups that overlap in plan become one group.
+
+    A tighter patch laid over a wider band is dropped: the union takes the spacing of the larger
+    group, the region's. What the program then still asks for inside the region shows up as a
+    leftover, and absorbing it tightens the whole region or leaves it, never a patch.
+    """
     groups = list(groups)
+    while True:
+        pair = next(((i, j) for i in range(len(groups)) for j in range(i + 1, len(groups))
+                     if _overlap(groups[i], groups[j])), None)
+        if pair is None:
+            return groups
+        i, j = pair
+        g, h = groups[i], groups[j]
+        big = g if (g.a1 - g.a0) * (g.b1 - g.b0) >= (h.a1 - h.a0) * (h.b1 - h.b0) else h
+        u = _union(g, h)
+        u.step = big.step
+        groups = [x for k, x in enumerate(groups) if k not in (i, j)] + [u]
+
+
+def merge_until(groups: list[Group], s: Settings, budget_lb: float) -> list[Group]:
+    """Greedily merge the pair adding the least steel while that cost stays under budget.
+
+    The result never has two groups one over the other (one_spacing).
+    """
+    groups = one_spacing(groups)
     while True:
         best = None
         for i in range(len(groups)):
@@ -133,7 +162,7 @@ def merge_until(groups: list[Group], s: Settings, budget_lb: float) -> list[Grou
                 if best is None or cost < best[0]:
                     best = (cost, i, j, u)
         if best is None or best[0] > budget_lb:
-            return groups
+            return one_spacing(groups)
         _, i, j, u = best
         groups = [g for k, g in enumerate(groups) if k not in (i, j)] + [u]
 

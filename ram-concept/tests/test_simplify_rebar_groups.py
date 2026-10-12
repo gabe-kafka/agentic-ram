@@ -103,6 +103,17 @@ class RebarGroupTests(unittest.TestCase):
         self.assertEqual(groups, [host])
         self.assertEqual([d.tag for d in left], ["inside a group", "no group within 5 ft"])
 
+    def test_patch_over_a_band_is_dropped_to_one_spacing(self) -> None:
+        s = rg.Settings()
+        band = rg.Group(0, 100, 0, 20, 3)          # 6 in over 100 ft
+        patch = rg.Group(40, 50, 2, 18, 4)         # 4 in laid over 10 ft of it
+        apart = rg.Group(120, 130, 0, 20, 4)       # not touching
+        out = rg.one_spacing([band, patch, apart])
+        self.assertEqual(len(out), 2)
+        region = next(g for g in out if g.a0 == 0)
+        self.assertEqual((region.a1, region.step), (100, 3))
+        self.assertEqual(len(rg.merge_until([band, patch, apart], s, 0)), 2)
+
     def test_callout_counts_bars_across_zone(self) -> None:
         g = rg.Group(0, 10, 0, 16, step=1)                   # 12 in over 10 ft
         self.assertEqual(g.callout(self.s, "B"), "(11)#7x16@12B")
