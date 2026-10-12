@@ -4,6 +4,7 @@
   python stud_openings.py list  <saved.cpt>
   python stud_openings.py add   <saved.cpt> <out.cpt> --at X Y [--at X Y ...] [--face south|north] [--toward west|east]
   python stud_openings.py move  <saved.cpt> <out.cpt> --back FT --at X Y [--at X Y ...]
+  python stud_openings.py radius <saved.cpt> <out.cpt> --radius FT --at X Y [--at X Y ...]
   python stud_openings.py show  <saved.cpt> <out.png> --at X Y
   python stud_openings.py calc  <any.cpt> <out.cpt> [--no-mesh]  mesh, calc all, save
   python stud_openings.py compare <before.cpt> <after.cpt> [--at X Y ...]
@@ -11,6 +12,8 @@
 `move` takes the assumed opening at each named column straight back from the face by FT. The saved
 file must be the model that is open in the session; it is read for the columns and their openings.
 `calc --no-mesh` is for changes that leave the mesh alone, such as a search radius.
+`radius` sets Maximum Search Radius on the punching check at each named column, through the API
+(the check is found by its UID in the saved file), and saves to <out.cpt>; then `calc --no-mesh`.
 
 Face rule: the long face. At a column with a slab edge or opening close on one long side, the
 inside face (the long face away from it). Otherwise the south (or west) face.
@@ -40,9 +43,28 @@ def pts(text):
 
 
 def columns(path):
-    """(x ft, y ft, b in, d in, angle) for every column; b is the plan x dimension at angle 0."""
-    return [(pts(p)[0][0] / FT, pts(p)[0][1] / FT, b / IN, d / IN, a)
-            for p, b, d, a in cr.connect(path).execute("select Point0, B, D, Angle from Column")]
+    """(x ft, y ft, b in, d in, angle) for every column; b is the plan x dimension.
+
+    A column turned through a multiple of 90 degrees is the same rectangle with its sides swapped,
+    so it comes back with b and d in plan order and angle 0. Any other angle is kept, and
+    `opening` refuses it.
+    """
+    out = []
+    for p, b, d, a in cr.connect(path).execute("select Point0, B, D, Angle from Column"):
+        quarters = a / (math.pi / 2)
+        k = round(quarters)
+        if abs(quarters - k) < 1e-6:
+            if k % 2:
+                b, d = d, b
+            a = 0.0
+        out.append((pts(p)[0][0] / FT, pts(p)[0][1] / FT, b / IN, d / IN, a))
+    return out
+
+
+def punch_checks(path):
+    """(uid, x ft, y ft, radius ft) of every punching check in a saved file."""
+    return [(uid, pts(p)[0][0] / FT, pts(p)[0][1] / FT, r / FT)
+            for uid, p, r in cr.connect(path).execute("select UID, Point0, MaxRadius from PunchCheck")]
 
 
 def rail_sets(path):
@@ -129,7 +151,7 @@ def show(path, out, at, reach=6.0):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("command", choices=["list", "add", "move", "show", "calc", "compare"])
+    p.add_argument("command", choices=["list", "add", "move", "radius", "show", "calc", "compare"])
     p.add_argument("model", type=Path)
     p.add_argument("out", nargs="?", type=Path)
     p.add_argument("--at", type=float, nargs=2, action="append", metavar=("X", "Y"))
@@ -138,6 +160,7 @@ def main():
     p.add_argument("--all", action="store_true", help="add: every column with stud rails in <saved.cpt>")
     p.add_argument("--existing", type=Path, help="add --all: skip columns that already have an opening in this saved file")
     p.add_argument("--back", type=float, help="move: distance (ft) to take the opening back from the column face")
+    p.add_argument("--radius", type=float, help="radius: Maximum Search Radius (ft) for the check at each --at")
     p.add_argument("--no-mesh", action="store_true", help="calc: keep the mesh; calc all and save")
     p.add_argument("--port", type=int)
     a = p.parse_args()
@@ -195,6 +218,28 @@ def main():
     from ram_concept.polygon_2D import Polygon2D
     layer = model.cad_manager.structure_layer
     before = len(layer.slab_openings)
+    if a.command == "radius":
+        from ram_concept.data import _PropertyUnits
+        checks = punch_checks(a.model)
+        if not a.at or not a.radius or a.radius <= 0:
+            raise SystemExit("radius: give --radius FT above 0 and at least one --at X Y")
+        done = []
+        for x, y in a.at:
+            uid, cx, cy, old = min(checks, key=lambda c: math.hypot(c[1] - x, c[2] - y))
+            if math.hypot(cx - x, cy - y) > 3:
+                raise SystemExit(f"no punching check within 3 ft of ({x:.1f},{y:.1f}); nothing changed")
+            check = model._get_data_from_uid(uid)
+            if check._command("[GET_TYPE]") != "PunchCheck":
+                raise SystemExit(f"uid {uid} is not a punching check in the session; is the session's model {a.model.name}? nothing changed")
+            live = check._get_property("MaxRadius", _PropertyUnits.User)
+            done.append((check, cx, cy, old, live))
+        for check, cx, cy, old, live in done:
+            check._set_property("MaxRadius", f"{a.radius:g}", _PropertyUnits.User)
+            now = check._get_property("MaxRadius", _PropertyUnits.User)
+            print(f"check at ({cx:.1f},{cy:.1f}): search radius {live} -> {now} ft")
+        model.save_file(str(a.out))
+        print(f"{len(done)} checks; saved {a.out}")
+        return
     if a.command == "move":
         saved = [[(x / FT, y / FT) for x, y in pts(mp)] for (mp,) in cr.connect(a.model).execute("select MultiPoint from SlabOpening")]
         saved = [q for q in saved if len(q) == 4 and max(v[0] for v in q) - min(v[0] for v in q) < 1.1 * SIZE / 12]

@@ -251,9 +251,42 @@ columns):
 - With a second Concept open (one launched from RAM Manager), GUI scripts
   must be pointed at the API session's process, and real keystrokes
   (`SendKeys`) and mouse clicks collide with the engineer's own typing.
-  While the engineer is at the PC, drive Concept with posted window
-  messages instead: a posted click on `Export...`, `WM_CHAR` into the
-  dialog's file name box, `BM_CLICK` on Save.
+  `punch-export.ps1` (2026-10-12) drives Concept with no mouse or keyboard
+  and the engineer keeps working beside it. What works, learnt the hard way:
+  - Concept is a Qt app and exposes its menus to UI Automation: the Layers
+    menu bar item expands (`ExpandCollapsePattern`), its items appear as
+    children of the item only while it is open, and the table is `Layers >
+    Design Status > Tables > Punching Check Analysis Table` (not "...
+    Analysis" as the tree names it). The table window's `Export...` is a
+    `QPushButton` with `InvokePattern`.
+  - The Export Entity Table dialog is the Windows file dialog. UI Automation
+    does not list it reliably; find it with `EnumWindows` (visible `#32770`
+    with that title in Concept's process). Its file name box is the `Edit`
+    with control id 1001 inside a `ComboBox`; it has no automation pattern,
+    so give it the name with `WM_SETTEXT` and read it back with
+    `WM_GETTEXT` (`GetWindowText` returns nothing for another process's
+    edit box). Save is dialog item 1: `BM_CLICK` to it. The dialog's search
+    box is also an edit: never take "any edit box".
+  - A closed file dialog stays around hidden for reuse; only a visible one
+    counts. A name that exists raises Concept's own `Save As...` box
+    ("replace the existing file?"), which blocks everything after it, so
+    refuse an existing name and cancel stray dialogs before starting.
+  - **Pause the Scripting Server before Save and resume it after.** With
+    the server running, Save created an empty file and Concept crashed
+    (0xc0000409 in ucrtbase, 2026-10-12 11:52). Both Pause and Resume are
+    plain buttons on the Scripting Server window, reachable by name.
+  - Concept creates the file at once and fills it a moment later: wait for
+    a size above zero that stops growing.
+  - A saved file reopened in a new session has empty result tables: the
+    export is a header line and every check reads as a cutoff error. Calc
+    in the session first (no mesh needed), then export.
+- The search radius needs no GUI at all: a punching check is a `PunchCheck`
+  data object in the API, found by the UID the saved file holds, and
+  `MaxRadius` reads and sets in user units (ft) through `_get_property` /
+  `_set_property`. `stud_openings.py radius` does it and saves.
+- A column turned through 90 degrees (every column on 2636 building 1,
+  24 x 16 in at 1.5708 rad) is the same rectangle with its sides swapped;
+  `stud_openings.py` reads it that way. Other angles still stop the tool.
 
 More from the reviewer:
 
