@@ -15,6 +15,15 @@ generated SSR geometry is available through `scripts/inspect-punching-checks.py`
 Live GUI attachment uses `skills/attach-ram-concept-api` and the official
 localhost API only.
 
+## Before any model work: which model is current
+
+Run `skills/compare-ram-concept-models/scripts/compare_cpt.py` on the
+engineer's model (the `.rss` on the job drive, or his last save) against the
+agent's newest working file, and say what differs before touching either.
+His save is the design; the agent's copy is a proposal until he locks it.
+Swaps into the `.rss` go through `ram-structural-system/skills/
+sync-ram-concept-into-rss`, once per decision, on his word.
+
 ## Core slab design workflows
 
 The engineer's five, in the order they are done on a slab, plus the plan
@@ -29,7 +38,7 @@ newest calculated model synced into the production RAM model.
 | 2 | Top bending reinforcement | `skills/simplify-ram-concept-top-rebar` | typical column counts; the band row |
 | 3 | Two-way punching reinforcement (stud rails, SSR) | `skills/design-ram-concept-stud-rails` | moving an assumed opening back, against the floor plan above |
 | 4 | Shear stud schedule | `skills/schedule-ram-concept-stud-rails` | the types |
-| 5 | One-way shear reinforcement | `skills/design-ram-concept-one-way-shear` | the marked-up PDF; the SVG reading goes back to him before any bar is drawn |
+| 5 | One-way shear reinforcement | `skills/design-ram-concept-one-way-shear` | the marked-up PDF of the full-width copy (where only; the SVG reading goes back to him before any bar is drawn); rows and legs in the main model; ends with the ST1 markup on the framing plans |
 | 6 | SSR plan markup for the documentation team | `skills/markup-ram-concept-ssr-plan` | he plots S101D himself; the tagged PDF is checked in Bluebeam |
 
 - 1 and 2 share `skills/simplify-ram-concept-rebar` (the engine) and
@@ -100,8 +109,9 @@ Standing rules from the engineer, which apply in every session:
 - After a beam is added, Concept may still show a punching fail; office uses a
   separate final punching check.
 - One-way shear: the office method screens on a separately saved copy with
-  every design strip at full width, then puts stirrups in the real model:
-  6 in along the span, one leg per mat bar across the column strip.
+  every design strip at full width (that copy decides where, nothing else),
+  then sizes the stirrups in the real model: 6 in along the span, one leg per
+  mat bar across the column strip, legs re-read after any strip change.
   See `references/RAM_CONCEPT_GUI_NOTES.md`, "One-way shear in a two-way
   slab", and `skills/design-ram-concept-one-way-shear`. Never set the real
   model's strips to full width. Show the engineer the SVG reading of his

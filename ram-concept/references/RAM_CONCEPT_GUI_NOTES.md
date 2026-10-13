@@ -314,6 +314,11 @@ and workbook are in `skills/schedule-ram-concept-stud-rails`.
 
 ## One-way shear in a two-way slab (office path)
 
+**Read first (2636 Building 2, 2026-10-07/08):** the full-width copy is a binary screen for *where*; the
+amount (rows, legs, pass) is designed in the real model on code-slab strips, legs = column strip width in
+feet re-read after any strip change, 6 in along. The drafting hand-off is the ST1 markup on the framing plans
+(width = strip width rounded down, length rounded up). Details in `skills/design-ram-concept-one-way-shear`.
+
 From a senior reviewer's walkthrough and the office's written process, both
 seen 2026-10-06. Run on one model that day; the tools are in
 `skills/design-ram-concept-one-way-shear`. Code
@@ -379,6 +384,15 @@ Two models, to end up with as few stirrups as possible:
    the column strip, provide them in both column and middle strips
    whatever the real model shows.
 8. Slab beside a beam will likely need stirrups along the beam's sides.
+9. The grid is 6 in along by 12 in across. Concept holds it as spacing = 6 in
+   and legs = column strip width in feet; it draws the region across the
+   whole strip and never checks the across spacing. On the drawings (2636
+   Building 3, S011 `ST1 #4 6" O.C. TYPE 1`) the region's width at the mat
+   spacing is the leg count. Recount the legs whenever the strips change.
+10. The full-width copy says only where. Rows, legs and pass come from the
+    main model; a baseline calc of it with no slab zones gives the demand per
+    location (2636, 2026-10-07: sizing against the full-width demand left 8
+    of 28 zones short).
 
 Stud rail columns, checked for one-way shear through the rails:
 

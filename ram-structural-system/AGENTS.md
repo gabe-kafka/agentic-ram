@@ -47,6 +47,11 @@ the matching `eng-agent` project's `ram-structural-system/` folder.
   asked to walk Modeler lateral walls, user-defined Frame story forces, or
   Concrete wall/column design by hand. Read its notes; do not mutate the
   production model.
+- Use **Sync RAM Concept into RSS** (`skills/sync-ram-concept-into-rss`) for
+  every swap of a saved Concept file into a job's `.rss`: it refuses while
+  RAM Manager has the model open or when the member hash is not the one the
+  change was built on, archives the replaced file and proves the result.
+  `scripts/rss_member.py` there lists, hashes and extracts the member.
 - Read the selected skill's `SKILL.md` before operating on an RSS archive, and
   open only the generated output model in RAM for visual validation.
 
