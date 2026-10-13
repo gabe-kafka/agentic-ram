@@ -51,23 +51,25 @@ class TypedTests(unittest.TestCase):
         bars = [column_bars(4, 9.5, 0), column_bars(10, 11.6, 1), column_bars(12, 12.2, 2), column_bars(22, 10.4, 3)]
         groups = tc.typed(bars, (10, 15))
         self.assertEqual([(g.count, g.length, g.kind) for g in groups],
-                         [(10, 12, "typical"), (10, 12, "typical"), (15, 13, "typical"), (22, 11, "own")])
-        self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 2), ("15#9 x 13'", 1), ("22#9 x 11'", 1)])
+                         [(10, 12, "typical"), (10, 12, "typical"), (15, 14, "typical"), (22, 12, "own")])
+        self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 2), ("15#9 x 14'", 1), ("22#9 x 12'", 1)])
 
     def test_beam_end_columns_keep_their_own_count_and_length(self) -> None:
         bars = [column_bars(8, 11.6, 0), column_bars(9, 16.8, 1), column_bars(28, 21.8, 2)]
         groups = tc.typed(bars, (10, 15), beam_ends=frozenset({1, 2}))
         self.assertEqual([(g.count, g.length, g.kind) for g in groups],
-                         [(10, 12, "typical"), (9, 17, "beam end"), (28, 22, "beam end")])
-        self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 1), ("9#9 x 17' (beam end)", 1), ("28#9 x 22' (beam end)", 1)])
+                         [(10, 12, "typical"), (9, 18, "beam end"), (28, 22, "beam end")])
+        self.assertEqual(tc.schedule(groups), [("10#9 x 12'", 1), ("9#9 x 18' (beam end)", 1), ("28#9 x 22' (beam end)", 1)])
 
     def test_lengthened_columns_keep_their_own_callout(self) -> None:
         bars = [column_bars(8, 11.6, 0), column_bars(9, 22.6, 1)]
         groups = tc.typed(bars, (10, 15), own=frozenset({1}))
-        self.assertEqual([(g.count, g.length, g.kind) for g in groups], [(10, 12, "typical"), (9, 23, "own")])
+        self.assertEqual([(g.count, g.length, g.kind) for g in groups], [(10, 12, "typical"), (9, 24, "own")])
 
-    def test_an_inch_over_does_not_earn_another_foot(self) -> None:
-        self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,))[0].length, 15)
+    def test_lengths_are_even_feet_and_an_inch_over_does_not_earn_more(self) -> None:
+        self.assertEqual(tc.typed([column_bars(9, 16.07)], (10,))[0].length, 16)
+        self.assertEqual(tc.typed([column_bars(9, 15.07)], (10,))[0].length, 16)
+        self.assertEqual(tc.typed([column_bars(9, 16.3)], (10,))[0].length, 18)
 
     def test_bar_keeps_the_program_end_at_a_slab_edge(self) -> None:
         edge = tc.ColumnBars(0, 5, 50, 6, 0, 10, 50, 56, -2.56, "#9")       # slab ends at b = 50
@@ -125,7 +127,7 @@ class CaptureTests(unittest.TestCase):
                                                 [demand(3, 6, 48, 52, 1)])
         bars = [tc.ColumnBars(g.column, 5, 50, g.count, g.a0, g.a1, g.b0, g.b1, g.elevation, g.size) for g in groups]
         typed = tc.typed(bars, (10, 15), own=frozenset(longer))
-        self.assertEqual([g.callout() for g in typed], ["15#9 x 13'", "15#9 x 13'"])
+        self.assertEqual([g.callout() for g in typed], ["15#9 x 14'", "15#9 x 14'"])
 
 
 if __name__ == "__main__":

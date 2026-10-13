@@ -6,7 +6,7 @@ Both directions in one work folder. Uses the engine in
 
 Over columns (bars by count):
   options  per direction, the cheapest schedules using 1 to 4 callouts (from base.cpt)
-  plan     write the next plan:  --typical 10 15   (heavier columns keep their own count)
+  plan     write the next plan:  --typical 10 15   (heavier columns keep their own count; lengths even feet)
   run      plan (when --typical is given) -> apply -> verify
 
 Away from columns (bars by spacing, like the bottom layers), once the column groups are in and calculated:

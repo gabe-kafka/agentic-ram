@@ -57,8 +57,9 @@ calc, for example after a new override.
   footprint (2 ft reach). Two bars at one column add up.
 - Each column gets the smallest typical count that covers it. A column
   needing more than the largest typical keeps its own count and length.
-- A typical callout's length is the longest demand among its columns, in
-  whole feet. About an inch over does not earn another foot.
+- **Every bar length is an even number of feet**, rounded up (office rule,
+  2026-10-12). A typical callout's length is the longest demand among its
+  columns. About an inch over does not earn more.
 - Each group keeps the program bar's centre, extent width and depth, so it
   sits in the same strip and layer. The two directions are at different
   depths (2636: longitude -2.56 in, latitude -1.56 in).

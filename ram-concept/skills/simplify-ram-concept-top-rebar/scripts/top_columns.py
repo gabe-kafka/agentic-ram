@@ -129,8 +129,9 @@ def capture(groups: list[ColumnGroup], strays, reach: float = 5.0):
 
 
 def _feet(length: float) -> int:
-    """Whole feet, rounding up; an inch or so over does not earn another foot."""
-    return math.ceil(length - 0.1)
+    """The callout length: even whole feet, rounding up (office rule). An inch or so over does not earn more."""
+    whole = math.ceil(length - 0.1)
+    return whole + whole % 2
 
 
 def tons(groups) -> float:
@@ -159,7 +160,8 @@ def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b:
           beam_ends: frozenset = frozenset(), own: frozenset = frozenset()) -> list[ColumnGroup]:
     """One group per column: the smallest typical count that covers it, else its own count.
 
-    A typical callout's length is the longest demand among its columns. Bars
+    A typical callout's length is the longest demand among its columns, in
+    even whole feet like every other length. Bars
     stay centred on the program bars; where that would run off the slab the
     bar keeps the program bar's end on that side. Columns in ``beam_ends``
     keep their own count and length (kind "beam end") and do not stretch the
@@ -168,11 +170,11 @@ def typed(bars: list[ColumnBars], typical: tuple[int, ...], on_slab=lambda a, b:
     typical = tuple(sorted(typical))
     apart = beam_ends | own
     kind_of = lambda c: None if c.column in apart else next((t for t in typical if c.count <= t), None)
-    lengths = {t: max((_feet(c.length) for c in bars if kind_of(c) == t), default=0) for t in typical}
+    longest = {t: max((_feet(c.length) for c in bars if kind_of(c) == t), default=0) for t in typical}
     groups = []
     for c in bars:
         t = kind_of(c)
-        count, length = (t, lengths[t]) if t else (c.count, _feet(c.length))
+        count, length = (t, longest[t]) if t else (c.count, _feet(c.length))
         mid_a, mid_b = (c.a0 + c.a1) / 2, (c.b0 + c.b1) / 2
         b0, b1 = mid_b - length / 2, mid_b + length / 2
         if not on_slab(mid_a, b0):
