@@ -84,10 +84,47 @@ def enums():
 
 
 def user_bars(model, layer: cr.Layer):
+    """The layer's user bars the engine owns: never the engineer's bars inside a concrete beam.
+
+    Office rule (2636 building 1, 2026-10-13): the beams' own reinforcement (two rows of 8#8 bottom, 3#6
+    top in each beam) is set by the engineer and is not slab rebar. The first baseline deleted it with
+    the slab bars and the engine drew #6 count groups in its place; the production sync caught it.
+    """
     _, DesignedBy, _, SlabFace, SpanSet = enums()
     span = SpanSet.LONGITUDE if layer.direction == "long" else SpanSet.LATITUDE
     face = SlabFace.TOP if layer.face == "top" else SlabFace.BOTTOM
-    return [b for b in model.cad_manager.rebar_layer.concentrated_rebar(DesignedBy.USER, span) if b.slab_face == face]
+    beams = live_beams(model)
+    out = []
+    for b in model.cad_manager.rebar_layer.concentrated_rebar(DesignedBy.USER, span):
+        if b.slab_face != face:
+            continue
+        p0, p1 = b.location.start_point, b.location.end_point
+        if beams and all(in_live_beam(x, y, beams) for x, y in ((p0.x, p0.y), (p1.x, p1.y))):
+            continue                          # the engineer's beam bars
+        out.append(b)
+    return out
+
+
+def live_beams(model) -> list:
+    """Concrete beams of the open model as (start, end, width) in feet."""
+    out = []
+    for beam in model.cad_manager.structure_layer.beams:
+        p0, p1 = beam.location.start_point, beam.location.end_point
+        out.append(((p0.x, p0.y), (p1.x, p1.y), beam.width))
+    return out
+
+
+def in_live_beam(x: float, y: float, beams: list, tol: float = 0.75) -> bool:
+    import math
+    for (ax, ay), (bx, by), w in beams:
+        dx, dy = bx - ax, by - ay
+        length2 = dx * dx + dy * dy
+        if not length2:
+            continue
+        t = ((x - ax) * dx + (y - ay) * dy) / length2
+        if -0.05 <= t <= 1.05 and math.hypot(x - (ax + t * dx), y - (ay + t * dy)) <= w / 2 + tol:
+            return True
+    return False
 
 
 def calc_and_save(model, path: Path) -> float:
