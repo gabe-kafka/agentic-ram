@@ -16,6 +16,7 @@ The scripts stay here and are canonical: change them here, then
 | `simplify-ram-concept-bottom-rebar` | `bottom-bars` | `bottom_bars_*`, `bars_draw` |
 | `simplify-ram-concept-top-rebar` | `top-bars` | `top_bars_*`, `bars_draw` |
 | `add-ram-concept-rebar-plans` | `rebar-plans` | `concept_rebar_plans_*` |
+| `design-ram-concept-one-way-shear` | `one-way-shear` | `one_way_shear_*`, `concept_calc` |
 
 ## Engine: scripts the shipped tools run
 
@@ -35,7 +36,6 @@ One job at a time, by the person developing them. A lab skill moves to
 shipped once it has run on a job and its office rules are settled; it then
 gets a connector skill and tools, and the `SKILL.md` here becomes a pointer.
 
-- `design-ram-concept-one-way-shear`
 - `compare-ram-concept-models`
 - `check-ram-concept-slab-transitions`
 - `schedule-ram-concept-stud-rails`
