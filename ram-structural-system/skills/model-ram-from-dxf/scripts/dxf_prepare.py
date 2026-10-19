@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Prepare an architect's DXF for RAM Modeler's import: one insert per column, the drawing near 0,0.
+"""Prepare an architect's DXF for RAM Modeler's import: one insert per column, the drawing near 0,0, unused blocks out.
 
   python dxf_prepare.py <floor.dxf> [--out <floor_RAM.dxf>] [--column-layer COL]
 
 Deletes inserts that sit on a point another insert of the same angle already holds (Revit exports
 carry doubles), then moves every model-space entity so the drawing's lower-left corner lands within
 a foot of the origin, on whole feet (the Modeler manual refuses coordinates far from 0,0). Writes a
-new file beside the source (`<name>_RAM.dxf` unless --out) and never touches the source. Layers,
-blocks and everything else are left as they are. Proven on 2612_08, 2026-10-15. Needs ezdxf.
+new file beside the source (`<name>_RAM.dxf` unless --out) and never touches the source. Blocks
+nothing inserts or names as a dimension arrow are deleted, so the import dialog's 100-block list
+reaches the column block; layers and everything else are left as they are. Proven on 2612_08,
+2026-10-15 and 2026-10-19. Needs ezdxf.
 """
 from __future__ import annotations
 
@@ -70,8 +72,39 @@ def main() -> int:
             print(f"  not moved: {e.dxftype()} on {e.dxf.layer}")
     doc.header["$EXTMIN"] = (minx + dx, miny + dy, 0)
     doc.header["$EXTMAX"] = (max(q.x for q in pts) + dx, max(q.y for q in pts) + dy, 0)
-    doc.saveas(out)
-    print(f"{len(seen)} columns ({len(doubles)} doubled inserts deleted); moved by ({dx / 12:.0f} ft, {dy / 12:.0f} ft); wrote {out}")
+
+    # RAM's Import DXF dialog lists only the first 100 block names; a Revit export carries hundreds
+    # (984 on 2612_08, the column block at 463), so the column block never shows. Keep only the used ones.
+    used = set()
+    for layout in doc.layouts:
+        used |= {e.dxf.name for e in layout.query("INSERT")}
+    for style in doc.dimstyles:        # arrow blocks are named by the dimension styles, not inserted (TICK1 on 2612_08)
+        for attr in ("dimblk", "dimblk1", "dimblk2", "dimldrblk"):
+            name = style.dxf.get(attr)                       # by name (the Revit export) or by handle (QCAD)
+            if name:
+                used.add(name)
+            handle = style.dxf.get(attr + "_handle")         # often empty; get_arrow_block_name raises then
+            record = doc.entitydb.get(handle) if handle else None
+            if record is not None:
+                used.add(record.dxf.name)
+    purged, again = 0, True
+    while again:                       # a block nested in a deleted block frees up on the next pass
+        again = False
+        for block in list(doc.blocks):
+            if block.name.startswith("*") or block.name in used:
+                continue
+            try:
+                doc.blocks.delete_block(block.name, safe=True)
+                purged, again = purged + 1, True
+            except ezdxf.DXFBlockInUseError:
+                pass
+    try:
+        doc.saveas(out)
+    except Exception:
+        out.unlink(missing_ok=True)    # never leave a half-written DXF for the import to read
+        raise
+    print(f"{len(seen)} columns ({len(doubles)} doubled inserts deleted); moved by ({dx / 12:.0f} ft, {dy / 12:.0f} ft); "
+          f"{purged} unused blocks purged; wrote {out}")
     return 0
 
 
