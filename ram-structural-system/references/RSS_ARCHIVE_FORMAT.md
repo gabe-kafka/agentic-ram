@@ -302,3 +302,19 @@ The highest-value unresolved mappings are:
 Each probe should change exactly one RAM field or object, save two separate
 models, compare archive payloads, confirm the UI/member report, and reopen the
 generated copy before promoting an offset from inferred to confirmed.
+
+## `.edg` slab edge segments (strongly inferred)
+
+Seen on 2612_08 (RAM SS 2025, 2026-10-20). `.edg` is a run of 48-byte records:
+
+| Offset | Type | Meaning |
+| ---: | --- | --- |
+| 0, 8 | `f64`, `f64` | Segment start X/Y in inches |
+| 16, 24 | `f64`, `f64` | Segment end X/Y in inches |
+| 32-47 | 4 x `i32` | Not decoded |
+
+- The file was 140 records: the same closed 70-segment outline for each of the two layouts (TYP and ROOF).
+- `.flt` offset 36 read 70 for each layout, which fits a per-layout edge count.
+- Plotted against `.w3d` walls and `.c3d` columns, the segments trace the slab edge, with every column inside it.
+- Use it read-only, for example for plan extents (the wind width B). Do not write to it.
+

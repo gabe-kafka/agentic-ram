@@ -26,6 +26,12 @@ the matching `eng-agent` project's `ram-structural-system/` folder.
 - `scripts/test-ram-api-hook.ps1`
 - `scripts/ram-modeler-hotkeys.ahk`
 - `scripts/inspect-ram-rss.ps1`
+- `scripts/frame_drift_compare.py`: RAM Frame Drift PDFs side by side, ratio
+  to limit and torsion per story.
+- `scripts/frame_member_forces.py`: RAM Frame `Member Forces > All` PDF to
+  per-wall JSON.
+- `scripts/bluebeam_markup.py`: Highlight and Text Box markups on RAM report
+  PDFs in the office Bluebeam style, editable in Revu.
 
 ## Product skills
 
@@ -69,7 +75,9 @@ the matching `eng-agent` project's `ram-structural-system/` folder.
 
 ## RAM Frame lessons
 
-- Read `references/RAM_FRAME_NOTES.md` before guiding a live Frame run.
+- Read `references/RAM_FRAME_NOTES.md` before guiding a live Frame run, and
+  `references/RAM_FRAME_LATERAL_VIDEO_NOTES.md` for a full seismic/wind lateral
+  run of a concrete shear wall building (drift, torsion, P-delta).
 - Wall gravity vs lateral is set in RAM Modeler (`Layout > Walls > Change`),
   not in Frame. A `No Lateral Member` diaphragm warning means walls are still
   gravity. Close Frame, change the walls, then reopen Frame.
@@ -83,6 +91,11 @@ the matching `eng-agent` project's `ram-structural-system/` folder.
 - Semi-rigid diaphragm meshing may drop a few distorted shells. The list is
   `%ProgramData%\Bentley\Engineering\RAM Structural System\Reports\<model>_MeshWarningReport.log`.
   Click OK and continue unless story shears look wrong.
+- Report Frame results on RAM's own report pages, highlighted and noted with
+  `scripts/bluebeam_markup.py`, not in a written report of our own.
+- Studies that change the lateral system leave the original `.rss` alone and
+  save each step as its own file, with its Drift PDF, so the original-then-
+  optimized progression can be shown.
 - After Frame finishes: RAM Concrete → `Criteria > Column Forces` → Use RAM
   Concept Forces → all floors green → `Process > Analyze`. Do not design walls
   before that.

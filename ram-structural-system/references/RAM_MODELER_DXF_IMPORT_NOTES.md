@@ -232,3 +232,36 @@ stories Level 1 to 10 at 10.5 ft, DataCheck clean.
 - The closed `EDGE` loop around the box C shaft is a second edge loop; it
   should be a Slab Opening.
 - Walls by Keyboard Mode Coordinate Entry, untried.
+
+## Slab edge loops, openings and saving in RAM 26 (*seen* 2026-10-19, 2612_08 Lateral)
+
+- A closed slab edge loop inside the slab (the box C shaft) fails DataCheck
+  as "Slab Edge was found within another Slab Edge polygon", once per story,
+  after surface loads exist. Friday's model passed DataCheck with the same
+  loop and no loads.
+- Delete it with `Layout > Slab > Slab Edge` → **Delete - Fence**, a fence
+  that holds only the loop. The `.edg` member keeps stale records of deleted
+  edges, so confirm deletions with DataCheck or on screen, not by reading
+  `.edg`.
+- **Delete - Single on a free-form edge is a single click exactly on the
+  edge** (manual). Dragging a line instead deleted part of the main slab
+  edge on the east side; Undo restored the segments but left a break that
+  DataCheck reported at (237.06, 120.76).
+- Shaft opening: `Layout > Slab > Slab Openings`, Slab Overhang 6 in (inside
+  face of 12 in walls), **Add**, click the first wall-corner node (snaps to
+  the wall end), then the **Keyboard Mode Coordinate Entry** box opens: type
+  each corner and Add. Enter the corners **counter-clockwise with Left**;
+  clockwise gave "Opening Edge on wrong Side of Beam" at every corner. Check
+  "Previous Point" after each Add: two Adds silently dropped a segment, which
+  DataCheck reports as "Break or Extraneous Opening Edge"; adding the
+  missing segment alone fixed it. In Bay places nothing where the bay is
+  walls only.
+- `Layout > Type > Copy` (All) carries slab edges, openings and walls to the
+  new layout type. Story menu: select the level row, pick the floor type,
+  Change, OK.
+- **Ctrl+S in Modeler 26 writes the `.rss` on S: as well as the working
+  files**, and RAM keeps the previous save as `<model>.backup`. That backup
+  is the restore point: close the model in RAM Manager (File > Close Model),
+  copy the `.backup` over the `.rss`, reopen.
+- Exiting Modeler on a model opened from production rewrites the production
+  `.rss`. Back it up first, or Save As to a working name in RAM Manager.
