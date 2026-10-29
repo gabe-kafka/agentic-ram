@@ -80,6 +80,26 @@ def bars(path: Path, layer: Layer, designed_by: int) -> list[Demand]:
     return out
 
 
+def stacks(bars: list, tol: float = 0.3) -> list[list]:
+    """Groups of bars drawn on top of each other: same footprint (within tol ft), count, size and depth.
+
+    Identical copies are never meant (2636 building 1, 2026-10-28: eight top groups four deep). Returns one
+    list per stack, two or more bars each, in the order read.
+    """
+    out = []
+    for d in bars:
+        key = (d.count, d.size, round(getattr(d, "elevation", 0.0), 2), getattr(d, "by_count", True))
+        for stack in out:
+            s = stack[0]
+            same = (s.count, s.size, round(getattr(s, "elevation", 0.0), 2), getattr(s, "by_count", True)) == key
+            if same and all(abs(u - v) <= tol for u, v in zip((s.a0, s.a1, s.b0, s.b1), (d.a0, d.a1, d.b0, d.b1))):
+                stack.append(d)
+                break
+        else:
+            out.append([d])
+    return [stack for stack in out if len(stack) > 1]
+
+
 def walls(path: Path, layer: Layer) -> list:
     """Wall centrelines of a saved model in the layer's local feet: ((a0, b0), (a1, b1))."""
     out = []

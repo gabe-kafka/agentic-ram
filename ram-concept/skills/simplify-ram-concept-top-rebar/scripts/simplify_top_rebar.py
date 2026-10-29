@@ -26,6 +26,8 @@ Away from columns as bands by spacing (the older way, like the bottom layers):
   apply    delete user top bars, draw the column groups and any bands
   verify   calc, save round-N.cpt, report what the program still adds
   report   the same report on the latest saved round, without calculating
+  dedupe   delete stacked copies of user top bars in the live session (same footprint, count, depth), both
+           directions; --calc verifies after. The report flags stacks in a saved round.
 
 Beam columns and "no bar called out" overrides follow ../clean-up-ram-concept-t-beams
 (t_beam_cleanup.py override ...); the record is decisions.json beside the work folders.
@@ -391,6 +393,10 @@ def report(a, state: dict, path: Path) -> dict:
             print("   elsewhere", sr.describe(d, layer))
         if beam_bars:
             print("   " + beam_note(beam_bars, layer, overrides))
+        for stack in cr.stacks(cr.bars(path, layer, cr.USER)):
+            d = stack[0]
+            x, y = layer.to_plan((d.a0 + d.a1) / 2, (d.b0 + d.b1) / 2)
+            print(f"   STACKED: {len(stack)} copies of {d.count}{d.size} at ({x:.0f},{y:.0f}); run dedupe")
     return left_over
 
 
@@ -478,6 +484,24 @@ def cmd_run(a):
     cmd_verify(a)
 
 
+def cmd_dedupe(a):
+    """Delete stacked copies of user top bars in the live session, both directions; --calc verifies after."""
+    model = sr.live_model(a.port)
+    total = 0
+    for name in LAYERS:
+        layer = cr.Layer.parse(name)
+        removed = sr.dedupe_live(model, layer)
+        for (a0, a1, b0, b1), callout, n in removed:
+            x, y = layer.to_plan((a0 + a1) / 2, (b0 + b1) / 2)
+            print(f"{name}: removed {n} stacked {'copy' if n == 1 else 'copies'} of {callout} at ({x:.0f},{y:.0f})")
+            total += n
+        if not removed:
+            print(f"{name}: no stacked copies")
+    sr.note(a.work, f"dedupe: removed {total} stacked copies")
+    if total and a.calc:
+        cmd_verify(a)
+
+
 def cmd_clusters(a):
     """Count groups for the program top bars away from columns, from the newest round; earlier clusters grow."""
     n, state = load_state(a.work)
@@ -553,7 +577,7 @@ def cmd_run_bands(a):
 
 def main(argv=None):
     commands = {"options": cmd_options, "plan": cmd_plan, "apply": cmd_apply, "verify": cmd_verify, "run": cmd_run,
-                "clusters": cmd_clusters, "run-clusters": cmd_run_clusters,
+                "clusters": cmd_clusters, "run-clusters": cmd_run_clusters, "dedupe": cmd_dedupe,
                 "band-options": cmd_band_options, "bands": cmd_bands, "run-bands": cmd_run_bands,
                 "report": cmd_report, "merge-bands": cmd_merge_bands}
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -561,6 +585,7 @@ def main(argv=None):
     p.add_argument("--work", required=True, type=Path, help="work folder holding base.cpt (no user top bars, calculated)")
     p.add_argument("--typical", type=int, nargs="+", help="typical bar counts, one list for both directions, e.g. 5 7 10 15 20")
     p.add_argument("--most", type=int, default=5, help="options: longest count list to price (default 5)")
+    p.add_argument("--calc", action="store_true", help="dedupe: calc, save and report after removing copies")
     p.add_argument("--cluster-length", type=float, nargs=2, metavar=("LONG", "LAT"),
                    help="clusters: the one bar length per direction, even feet (default: commonest program length)")
     p.add_argument("--band-size", default="#9", help="bar size for the scattered bands, e.g. #7")

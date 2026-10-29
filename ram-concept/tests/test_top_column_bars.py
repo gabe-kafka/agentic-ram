@@ -10,6 +10,7 @@ SKILLS = Path(__file__).resolve().parents[1] / "skills"
 sys.path.insert(0, str(SKILLS / "simplify-ram-concept-rebar" / "scripts"))
 sys.path.insert(0, str(SKILLS / "simplify-ram-concept-top-rebar" / "scripts"))
 
+import cpt_reader as cr  # noqa: E402
 import rebar_groups as rg  # noqa: E402
 import top_columns as tc  # noqa: E402
 
@@ -142,6 +143,26 @@ class CaptureTests(unittest.TestCase):
         bars = [tc.ColumnBars(g.column, 5, 50, g.count, g.a0, g.a1, g.b0, g.b1, g.elevation, g.size) for g in groups]
         typed = tc.typed(bars, (10, 15), own=frozenset(longer))
         self.assertEqual([g.callout() for g in typed], ["15#9 x 14'", "15#9 x 14'"])
+
+
+class StackTests(unittest.TestCase):
+    """Bars drawn on top of each other (2636 building 1: eight groups four deep)."""
+
+    def test_identical_copies_are_one_stack(self) -> None:
+        a, b, c = demand(0, 7.5, 95, 109, 20, "#8"), demand(0.1, 7.6, 95.1, 109.1, 20, "#8"), demand(0, 7.5, 95, 109, 20, "#8")
+        other = demand(30, 37.5, 95, 109, 20, "#8")
+        stacks = cr.stacks([a, other, b, c])
+        self.assertEqual([len(s) for s in stacks], [3])
+        self.assertIs(stacks[0][0], a)
+
+    def test_a_different_count_or_depth_is_not_a_copy(self) -> None:
+        a, b = demand(0, 7.5, 95, 109, 20, "#8"), demand(0, 7.5, 95, 109, 15, "#8")
+        deeper = demand(0, 7.5, 95, 109, 20, "#8")
+        deeper.elevation = -5.0
+        self.assertEqual(cr.stacks([a, b, deeper]), [])
+
+    def test_a_shifted_bar_is_not_a_copy(self) -> None:
+        self.assertEqual(cr.stacks([demand(0, 7.5, 95, 109, 20, "#8"), demand(0.5, 8.0, 95, 109, 20, "#8")]), [])
 
 
 class SharedOptionTests(unittest.TestCase):

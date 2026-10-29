@@ -44,8 +44,12 @@ slab has concrete beams. What matters here:
   as its own: it does, by the footprints in this work folder's plans
   (`owned_footprints`). Before that (2636 building 1, 2026-10-28) four rounds
   stacked the eight latitude groups on the beam lines four deep, and the
-  stack went into the production model. After a run on a slab with beams,
-  check the user bars at the beam columns are single.
+  stack went into the production model. Every report now ends with any
+  `STACKED: n copies of ... at (x,y)` it finds in the saved round; `dedupe`
+  deletes the extra copies in the live session (same footprint, count and
+  depth keep one, the engineer's beam bars included since their rows differ
+  in depth), and `--calc` verifies after. Run it on any model that was
+  worked before 2026-10-29.
 
 Ryan's note also covers the rest of the top steel: continuous runs over
 walls, and group the top bars over columns as much as possible.
@@ -60,6 +64,7 @@ python simplify_top_rebar.py options      --work <dir>                      # 1 
 python simplify_top_rebar.py run          --work <dir> --typical 5 7 10 15 20
 python simplify_top_rebar.py run-clusters --work <dir> --cluster-length 14 12   # long, lat; even feet
 python simplify_top_rebar.py report       --work <dir>
+python simplify_top_rebar.py dedupe       --work <dir> [--calc]                  # when a report says STACKED
 ```
 
 `plan`, `apply`, `verify` and `clusters` run single steps. `run` without

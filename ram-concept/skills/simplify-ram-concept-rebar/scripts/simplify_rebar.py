@@ -111,6 +111,34 @@ def user_bars(model, layer: cr.Layer, owned: list = ()):
     return out
 
 
+def dedupe_live(model, layer: cr.Layer, tol: float = 0.3) -> list:
+    """Delete stacked copies of user bars in the live session: same footprint, quantity and depth keep one.
+
+    Every user bar of the layer is looked at, the engineer's beam bars included: identical copies are never
+    meant, and the engineer's rows in a beam differ in depth. Returns (footprint, callout, copies removed)
+    per stack, footprints in local feet. No calc.
+    """
+    _, DesignedBy, _, SlabFace, SpanSet = enums()
+    span = SpanSet.LONGITUDE if layer.direction == "long" else SpanSet.LATITUDE
+    face = SlabFace.TOP if layer.face == "top" else SlabFace.BOTTOM
+    kept, removed = [], {}
+    for b in model.cad_manager.rebar_layer.concentrated_rebar(DesignedBy.USER, span):
+        if b.slab_face != face:
+            continue
+        fp = footprint(b, layer)
+        by_count = str(b.quantity_type).endswith("BY_COUNT")
+        quantity = b.count if by_count else round(b.spacing, 2)
+        key = (by_count, quantity, round(b.elevation_from_reference, 2))
+        twin = next((k for k in kept if k[1] == key and on_owned(fp, [k[0]], tol)), None)
+        if twin is None:
+            kept.append((fp, key, b))
+            continue
+        b.delete()
+        callout = f"{quantity}{b.bar_type.name}" if by_count else f'{b.bar_type.name} @{quantity * 12:g}"'
+        removed[twin[0]] = (callout, removed.get(twin[0], ("", 0))[1] + 1)
+    return [(fp, callout, n) for fp, (callout, n) in removed.items()]
+
+
 def footprint(b, layer: cr.Layer) -> tuple:
     """A live bar's (a0, a1, b0, b1) in the layer's local feet, extent centred on the bar line as the engine draws it."""
     p0, p1 = b.location.start_point, b.location.end_point
