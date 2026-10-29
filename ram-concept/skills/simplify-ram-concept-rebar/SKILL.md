@@ -86,6 +86,19 @@ written again.
 
 ## Rules learned the hard way
 
+- **Calc after a bar change the engineer's way** (2636, 2026-10-29):
+  `calc_and_save` runs `calc_partial` at the Detailing level with only
+  out-of-date items, warnings neither interrupting nor invalidating, and no
+  mesh. That is his Calc dialog after a bar layout change; the analysis is
+  still good, so only design, punching and the program bar layout rerun.
+  `full=True` is Calc All, for a model whose analysis is stale.
+- **The engine's own bars inside a beam.** `user_bars` spares the
+  engineer's bars inside a concrete beam, so it must know its own there:
+  pass `owned_footprints(work, layer)`, the footprints of every group this
+  work folder's plans ever drew. Without it a group drawn at a beam column
+  could not be deleted the next round and stacked (2636 building 1,
+  2026-10-28: eight top groups four deep in the production model).
+
 - **Bar depth follows the thinnest slab under the group.** Concept places
   each concentrated group at one elevation: the one that fits the thinnest
   slab anywhere in its footprint (84 of 87 program groups on 2636). A band

@@ -93,7 +93,9 @@ if a.no_calc:
     sys.exit(0)
 log("calc all ...")
 start = time.time()
-model.calc_all(timeout_seconds=3600)
+from ram_concept.model import CalcLevel
+model.calc_partial(CalcLevel.DETAIL, skip_warnings=True, calc_only_out_of_date=True,
+                   warnings_invalidate_calcs=False, timeout_seconds=3600)   # the engineer's bar-change calc: no analysis, no mesh
 log(f"calc returned in {time.time() - start:.0f} s")
 model.save_file(str(a.save))
 log("saved", a.save.name, "after the calc")

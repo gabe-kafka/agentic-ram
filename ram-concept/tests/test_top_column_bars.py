@@ -101,10 +101,24 @@ class CaptureTests(unittest.TestCase):
         groups, changed, longer, left = tc.capture([self.group(4, kind="beam end")], [demand(3, 6, 48, 52, 1)])
         self.assertEqual((groups[0].count, groups[0].length, changed, longer, left), (5, 12, {0}, set(), []))
 
-    def test_a_bar_beside_the_extent_is_the_next_strips_bar(self) -> None:
+    def test_a_bar_beside_the_extent_widens_the_group_once(self) -> None:
         stray = demand(10.4, 14, 47, 51, 1)
         groups, changed, _, left = tc.capture([self.group(15)], [stray])
-        self.assertEqual((groups[0].count, groups[0].a0, groups[0].a1, changed, left), (15, 0, 10, set(), [stray]))
+        self.assertEqual((groups[0].count, groups[0].a0, groups[0].a1, groups[0].widened, changed, left),
+                         (16, 0, 14, True, {0}, []))
+        again = demand(14.5, 18, 47, 51, 2)                      # the next strip's bar: left
+        groups, changed, _, left = tc.capture(groups, [again])
+        self.assertEqual((groups[0].count, groups[0].a1, changed, left), (16, 14, set(), [again]))
+
+    def test_a_bar_far_beside_the_extent_is_left(self) -> None:
+        stray = demand(16, 20, 47, 51, 1)
+        groups, changed, _, left = tc.capture([self.group(15)], [stray])
+        self.assertEqual((groups[0].count, groups[0].a1, changed, left), (15, 10, set(), [stray]))
+
+    def test_typed_keeps_the_widened_flag(self) -> None:
+        bars = [column_bars(11, 14, 0), column_bars(6, 12, 1)]
+        typed = tc.typed(bars, (10, 15), widened=frozenset({0}))
+        self.assertEqual([(g.callout(), g.widened) for g in typed], [("15#9 x 14'", True), ("10#9 x 12'", False)])
 
     def test_a_bar_past_the_end_lengthens_the_group_without_adding_bars(self) -> None:
         groups, changed, longer, _ = tc.capture([self.group(8)], [demand(2, 8, 58.5, 66.5, 1)])
@@ -128,6 +142,103 @@ class CaptureTests(unittest.TestCase):
         bars = [tc.ColumnBars(g.column, 5, 50, g.count, g.a0, g.a1, g.b0, g.b1, g.elevation, g.size) for g in groups]
         typed = tc.typed(bars, (10, 15), own=frozenset(longer))
         self.assertEqual([g.callout() for g in typed], ["15#9 x 14'", "15#9 x 14'"])
+
+
+class SharedOptionTests(unittest.TestCase):
+    def test_one_count_list_serves_both_directions(self) -> None:
+        by_layer = {"top-long": [column_bars(5, 12, 0), column_bars(5, 12, 1), column_bars(14, 14, 2)],
+                    "top-lat": [column_bars(7, 10, 0), column_bars(19, 14, 1)]}
+        rows = tc.type_options_shared(by_layer, most=3)
+        self.assertEqual([r["types"] for r in rows], [1, 2, 3])
+        self.assertEqual(rows[1]["counts"], [7, 19])                 # 5s and 7 share 7; 14 and 19 share 19
+        self.assertEqual(rows[1]["per"]["top-long"]["schedule"], [(7, 12, 2, "typical"), (19, 14, 1, "typical")])
+        self.assertLessEqual(rows[2]["tons"], rows[1]["tons"])
+        self.assertLessEqual(rows[1]["tons"], rows[0]["tons"])
+
+    def test_the_largest_count_is_always_listed(self) -> None:
+        rows = tc.type_options_shared({"top-long": [column_bars(5, 12), column_bars(30, 16)]}, most=1)
+        self.assertEqual(rows[0]["counts"], [30])
+        self.assertEqual(rows[0]["per"]["top-long"]["schedule"], [(30, 16, 2, "typical")])
+
+
+class ClusterTests(unittest.TestCase):
+    """The engineer's count groups away from columns, 2636 building 1 (2026-10-28)."""
+
+    # local axes: a across the bars, b along them (2636 latitude: a is plan y, b is plan x)
+
+    def test_touching_program_bars_make_one_group_at_the_next_typical_count(self) -> None:
+        bars = [demand(107.6, 115.4, 67.2, 75.7, 3, "#8"), demand(115.4, 123.1, 67.2, 75.7, 3, "#8")]
+        groups = tc.cluster_groups(bars, (5, 7, 10, 15, 20), 12, "#8")
+        self.assertEqual([(g.callout(), g.kind, round(g.a1 - g.a0, 1)) for g in groups], [("7#8 x 12'", "cluster", 15.5)])
+        self.assertAlmostEqual((groups[0].b0 + groups[0].b1) / 2, (67.2 + 75.7) / 2)
+
+    def test_a_small_sum_stays_exact_and_a_big_one_takes_the_covering_typical(self) -> None:
+        small = tc.cluster_groups([demand(89.1, 92.9, 36.8, 47.8, 2, "#8"), demand(92.9, 96.6, 37, 48, 2, "#8")],
+                                  (5, 7, 10, 15, 20), 12, "#8")
+        big = tc.cluster_groups([demand(99.7, 107.9, 127.2, 138.7, 9, "#8"), demand(97.5, 99.7, 126.2, 138.7, 3, "#8"),
+                                 demand(95.2, 96.6, 126.2, 138.2, 2, "#8"), demand(90.6, 95.2, 129.6, 135.1, 1, "#8")],
+                                (5, 7, 10, 15, 20), 12, "#8")
+        self.assertEqual(([g.count for g in small], [g.count for g in big]), ([4], [15]))
+
+    def test_bars_apart_across_or_along_stay_separate(self) -> None:
+        bars = [demand(90, 100, 0, 12, 3, "#8"), demand(102, 110, 0, 12, 3, "#8"), demand(90, 100, 20, 32, 3, "#8")]
+        self.assertEqual(len(tc.cluster_groups(bars, (5, 7), 12, "#8")), 3)
+
+    def test_a_chain_wider_than_a_strip_is_cut_at_its_widest_gap(self) -> None:
+        middle = [demand(75.4, 80.2, 127.3, 135.3, 1, "#8"), demand(80.6, 86.1, 127.6, 134.6, 2, "#8"),
+                  demand(86.1, 88.4, 127.6, 136.1, 1, "#8"), demand(89.1, 90.6, 128.7, 136.2, 2, "#8"),
+                  demand(90.6, 92.9, 125.9, 136.9, 1, "#8")]
+        column = [demand(95.2, 96.6, 126.2, 138.2, 2, "#8"), demand(97.5, 99.7, 126.2, 138.7, 3, "#8"),
+                  demand(99.7, 107.9, 127.2, 138.7, 9, "#8")]
+        bridge = [demand(90.6, 95.2, 129.6, 135.1, 1, "#8")]
+        groups = sorted(tc.cluster_groups(middle + bridge + column, (5, 7, 10, 15, 20), 12, "#8"), key=lambda g: g.a0)
+        self.assertEqual([(round(g.a0, 1), round(g.a1, 1), g.count) for g in groups],
+                         [(89.1, 96.6, 7), (97.5, 107.9, 15)])          # the noise-only piece at 75-88 is left
+        wall = [((84.0, 131.0), (102.0, 131.0))]                         # a wall across the bars does not make this a run
+        self.assertEqual(len(tc.cluster_groups(middle + bridge + column, (5, 7, 10, 15, 20), 12, "#8", walls=wall)), 2)
+
+    def test_a_run_over_a_wall_stays_whole_at_its_densest_bars_spacing(self) -> None:
+        bars = [demand(126.9, 134.8, 94.9, 107.4, 10, "#8"), demand(134.8, 137.4, 94.9, 107.4, 4, "#8"),
+                demand(138.1, 142.4, 94.9, 107.4, 6, "#8"), demand(143.6, 147.0, 95.1, 106.6, 5, "#8")]
+        wall = [((131.0, 102.0), (156.0, 102.0))]
+        groups = tc.cluster_groups(bars, (5, 7, 10, 15, 20), 14, "#8", walls=wall)
+        self.assertEqual([(g.count, g.length, round(g.a1 - g.a0, 1)) for g in groups], [(31, 14, 20.1)])   # 4 over 2.6 ft
+        self.assertEqual(len(tc.cluster_groups(bars, (5, 7, 10, 15, 20), 14, "#8")), 2)                   # no wall: cut
+
+    def test_noise_alone_gets_no_group_but_a_seed_is_kept(self) -> None:
+        noise = demand(62.3, 68.8, 50.1, 54.0, 1, "#8")
+        self.assertEqual(tc.cluster_groups([noise], (5, 7), 12, "#8"), [])
+        seed = demand(60, 72, 50, 54, 2, "#8")
+        seed.tag = "seed"
+        self.assertEqual([g.callout() for g in tc.cluster_groups([seed], (5, 7), 12, "#8")], ["2#8 x 12'"])
+        grown = tc.cluster_groups([seed, demand(72.5, 76, 50.5, 58, 4, "#8")], (5, 7), 12, "#8")
+        self.assertEqual([g.callout() for g in grown], ["7#8 x 12'"])
+
+    def test_noise_joins_a_real_bar_beside_it(self) -> None:
+        pair, lone = demand(91.8, 101.3, 217.1, 227.8, 2, "#8"), demand(95.0, 100.0, 226.0, 231.0, 1, "#8")
+        self.assertEqual([g.callout() for g in tc.cluster_groups([pair, lone], (5, 7), 10, "#8")], ["3#8 x 10'"])
+
+    def test_an_edge_sliver_is_set_aside(self) -> None:
+        sliver = demand(141.2, 143.6, 270.2, 281.2, 3, "#8")
+        edge = lambda a, b: a < 144.0
+        self.assertEqual(tc.cluster_groups([sliver], (5, 7), 12, "#8", on_slab=edge), [])
+        self.assertEqual(len(tc.cluster_groups([sliver], (5, 7), 12, "#8")), 1)
+
+    def test_noise_is_a_lone_bar_to_ten_feet_or_a_pair_to_seven(self) -> None:
+        self.assertTrue(tc.is_noise(demand(0, 5, 0, 9.5, 1, "#8")))
+        self.assertTrue(tc.is_noise(demand(0, 4, 0, 6.5, 2, "#8")))
+        self.assertFalse(tc.is_noise(demand(0, 5, 0, 9.5, 2, "#8")))
+        self.assertFalse(tc.is_noise(demand(0, 7, 0, 5, 3, "#8")))
+
+    def test_standard_length_is_the_commonest_real_program_length(self) -> None:
+        bars = [demand(0, 8, 0, 11.5, 4, "#8"), demand(0, 8, 0, 12, 3, "#8"), demand(0, 8, 0, 13.5, 3, "#8"),
+                demand(0, 4, 0, 6, 1, "#8")]
+        self.assertEqual(tc.standard_length(bars), 12)
+
+    def test_schedule_lists_clusters_last(self) -> None:
+        col = tc.ColumnGroup(0, 5, 12, "typical", 0, 7.5, 0, 12, -1.5, "#8")
+        away = tc.ColumnGroup(-1, 7, 12, "cluster", 20, 35, 0, 12, -1.5, "#8")
+        self.assertEqual(tc.schedule([away, col]), [("5#8 x 12'", 1), ("7#8 x 12' (away from columns)", 1)])
 
 
 if __name__ == "__main__":

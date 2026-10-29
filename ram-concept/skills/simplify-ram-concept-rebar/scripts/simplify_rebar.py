@@ -83,12 +83,17 @@ def enums():
     return BarEnd, DesignedBy, ElevationReference, SlabFace, SpanSet
 
 
-def user_bars(model, layer: cr.Layer):
+def user_bars(model, layer: cr.Layer, owned: list = ()):
     """The layer's user bars the engine owns: never the engineer's bars inside a concrete beam.
 
     Office rule (2636 building 1, 2026-10-13): the beams' own reinforcement (two rows of 8#8 bottom, 3#6
     top in each beam) is set by the engineer and is not slab rebar. The first baseline deleted it with
     the slab bars and the engine drew #6 count groups in its place; the production sync caught it.
+
+    ``owned`` are footprints (a0, a1, b0, b1, local feet) the engine itself drew in this work folder
+    (``owned_footprints``). A bar inside a beam that sits on one of them is the engine's own and is
+    returned too. Without that, groups drawn at beam columns could not be deleted the next round and
+    stacked: 2636 building 1, 2026-10-28, eight latitude column groups four deep in the production model.
     """
     _, DesignedBy, _, SlabFace, SpanSet = enums()
     span = SpanSet.LONGITUDE if layer.direction == "long" else SpanSet.LATITUDE
@@ -99,9 +104,44 @@ def user_bars(model, layer: cr.Layer):
         if b.slab_face != face:
             continue
         p0, p1 = b.location.start_point, b.location.end_point
-        if beams and all(in_live_beam(x, y, beams) for x, y in ((p0.x, p0.y), (p1.x, p1.y))):
+        if (beams and all(in_live_beam(x, y, beams) for x, y in ((p0.x, p0.y), (p1.x, p1.y)))
+                and not on_owned(footprint(b, layer), owned)):
             continue                          # the engineer's beam bars
         out.append(b)
+    return out
+
+
+def footprint(b, layer: cr.Layer) -> tuple:
+    """A live bar's (a0, a1, b0, b1) in the layer's local feet, extent centred on the bar line as the engine draws it."""
+    p0, p1 = b.location.start_point, b.location.end_point
+    (a_start, b_start), (a_end, b_end) = layer.to_local(p0.x, p0.y), layer.to_local(p1.x, p1.y)
+    mid, half = (a_start + a_end) / 2, b.extent_zone_width / 2
+    return (mid - half, mid + half, min(b_start, b_end), max(b_start, b_end))
+
+
+def on_owned(fp: tuple, owned: list, tol: float = 0.3) -> bool:
+    return any(all(abs(u - v) <= tol for u, v in zip(fp, o)) for o in owned)
+
+
+def owned_footprints(work: Path, layer: cr.Layer) -> list:
+    """Every footprint the engine ever drew for this layer from this work folder's plans.
+
+    Top work folders keep columns-plan-N.json (column groups, clusters, bands per layer); bottom and
+    single-layer work folders keep plan-N.json (groups and beam_groups of one layer).
+    """
+    out = []
+    for path in list(work.glob("columns-plan-*.json")) + list(work.glob("plan-*.json")):
+        try:
+            state = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        sets = []
+        if path.name.startswith("columns-plan"):
+            for key in ("layers", "clusters", "bands"):
+                sets += state.get(key, {}).get(layer.name, [])
+        else:
+            sets += state.get("groups", []) + state.get("beam_groups", [])
+        out += [(g["a0"], g["a1"], g["b0"], g["b1"]) for g in sets if all(k in g for k in ("a0", "a1", "b0", "b1"))]
     return out
 
 
@@ -127,9 +167,21 @@ def in_live_beam(x: float, y: float, beams: list, tol: float = 0.75) -> bool:
     return False
 
 
-def calc_and_save(model, path: Path) -> float:
+def calc_and_save(model, path: Path, full: bool = False) -> float:
+    """Calc after a bar change the way the engineer does it (2636, 2026-10-29), then save.
+
+    His Calc dialog: extent "+ Detailing", "Calculate only out-of-date items" and "Don't interrupt calcs
+    for warnings" ticked, "Warnings invalidate calculations" not. No mesh is generated. A bar change
+    leaves the analysis up to date, so only design, punching and the program bar layout are redone.
+    ``full`` is Calc All (everything but the mesh), for a model whose analysis is stale.
+    """
     start = time.time()
-    model.calc_all(timeout_seconds=3600)
+    if full or not hasattr(model, "calc_partial"):
+        model.calc_all(timeout_seconds=3600)
+    else:
+        from ram_concept.model import CalcLevel
+        model.calc_partial(CalcLevel.DETAIL, skip_warnings=True, calc_only_out_of_date=True,
+                           warnings_invalidate_calcs=False, timeout_seconds=3600)
     model.save_file(str(path))
     return time.time() - start
 
@@ -225,7 +277,7 @@ def split_waived(demands, marks: dict):
 
 def cmd_baseline(a):
     model, layer = live_model(a.port), cr.Layer.parse(a.layer)
-    old = user_bars(model, layer)
+    old = user_bars(model, layer, owned_footprints(a.work, layer))
     if a.reuse_calc:
         if old:
             raise SystemExit(f"{a.layer} has {len(old)} user groups; run baseline without --reuse-calc")
@@ -300,7 +352,7 @@ def cmd_apply(a):
     s = settings_of(state)
     mesh = cr.Mesh(a.work / "base.cpt")
     bar = model.rebars.rebar(s.size)
-    old = user_bars(model, layer)
+    old = user_bars(model, layer, owned_footprints(a.work, layer))
     for b in old:
         b.delete()
     marks = load_transitions(state.get("verdicts"), layer)

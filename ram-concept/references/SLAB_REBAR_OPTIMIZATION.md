@@ -265,6 +265,38 @@ Then calc, fix the problem areas specifically, calc again.
   Concept's SSR table as the basis for the stud rail spreadsheet; it goes
   by coordinates and gives rail lengths.
 
+## The engineer's hand finish of the top bars (2636 building 1, 2026-10-28)
+
+After the column groups went in from a shared five-count list (5, 7, 10,
+15, 20 #8, picked from five priced rows), the engineer finished the top
+steel by hand in about 50 minutes. Read back from his saved file against
+the plan (`simplify-ram-concept-top-rebar`, `top_columns.py` now does the
+same):
+
+- Away from the columns: 28 count groups (23 latitude, 5 longitude), one
+  over each cluster of program bars, the strip's width (7.5 or 15 ft), one
+  length per direction (12' latitude, 14' longitude), count = the sum of
+  the program bars rounded up to the covering typical (`7#8 x 12'` nine
+  times). Not bands by spacing.
+- Runs over walls: one group across the run, heavier than the peak program
+  density (`46#8 x 14'` and `31#8 x 14'` over 23 ft, about 6 and 9 in).
+- Strays beside a column group: the group widened once and moved up a
+  count (`10#8` to `12#8` and `15#8`). Building 2's "never widen" lesson
+  stands for the second time round.
+- Lengths trimmed by hand: `15#8 x 18'` to `16#8 x 14'`; two `5#8 x 12'`
+  to `14'` with their neighbours.
+- Noise left alone: 17 longitude and 14 latitude program leftovers of one
+  bar up to 10 ft, a pair up to 7 ft, or a sliver in the 2.5 ft edge strip.
+  Done means no real leftover, not no program bar.
+- His calc after a bar change: extent "+ Detailing", out-of-date items
+  only, warnings not interrupting or invalidating, no mesh. The engine
+  now calcs that way (`calc_and_save`).
+
+Found in the same read-back: the eight latitude groups at the beam columns
+were stacked four deep (the engine could not delete its own bars inside the
+beams between rounds); fixed by `owned_footprints`, and the production model
+needs the extra copies removed.
+
 ## Where things live
 
 Repo `agentic-ram` (reusable, checked in):

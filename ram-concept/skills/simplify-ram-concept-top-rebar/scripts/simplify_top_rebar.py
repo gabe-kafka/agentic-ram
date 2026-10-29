@@ -5,11 +5,18 @@ Both directions in one work folder. Uses the engine in
 ``../simplify-ram-concept-rebar/scripts`` for the live session and .cpt reads.
 
 Over columns (bars by count):
-  options  per direction, the cheapest schedules using 1 to 4 callouts (from base.cpt)
-  plan     write the next plan:  --typical 10 15   (heavier columns keep their own count; lengths even feet)
+  options  shared count lists for both directions, 1 to 5 typical counts, priced (from base.cpt)
+  plan     write the next plan:  --typical 5 7 10 15 20   (heavier columns keep their own count; lengths even feet)
   run      plan (when --typical is given) -> apply -> verify
 
-Away from columns (bars by spacing, like the bottom layers), once the column groups are in and calculated:
+Away from columns, by count, the way the engineer finished 2636 building 1 (one group over each cluster of
+program bars, one length per direction), once the column groups are in and calculated:
+  clusters      write the next plan with the groups away from columns:  --cluster-length 14 12  (long, lat;
+                default: the commonest program bar length per direction)
+  run-clusters  clusters -> apply -> verify -> column groups take the leftovers beside them, until nothing
+                real is left (3 rounds at most)
+
+Away from columns as bands by spacing (the older way, like the bottom layers):
   band-options  groups-vs-tons table for the scattered top bars:  --band-size "#7"
   bands         add the chosen bands to the plan:  --band-size "#7" --option LONG LAT   (default: knee rows)
   run-bands     apply -> verify -> capture leftovers into the nearest group, until nothing changes
@@ -144,20 +151,27 @@ def loose_tons(loose) -> float:
 
 
 def cmd_options(a):
+    """Shared count lists for both directions, 1 to --most typical counts, cheapest of each, with the schedules."""
     base = a.work / "base.cpt"
     warn_beams(base)
+    by_layer, sizes = {}, {}
     for name in LAYERS:
         layer = cr.Layer.parse(name)
         overrides = br.overrides(a.work.parent, name)
         bars, loose, size, beam_bars = gather(base, layer, overrides)
-        print(f"\n{name}: {len(bars)} columns with top demand, {size}; "
+        by_layer[name], sizes[name] = bars, size
+        print(f"{name}: {len(bars)} columns with top demand, {size}; "
               f"{len(loose)} program groups not over a column ({loose_tons(loose):.1f} tons)")
         if beam_bars:
             print("   " + beam_note(beam_bars, layer, overrides))
-        print(" types   tons   schedule")
-        for row in tc.type_options(bars):
-            text = "; ".join(f"{n}{size} x {length}' at {k}" for n, length, k in row["schedule"])
-            print(f"   {row['types']}    {row['tons']:5.1f}   {text}")
+    print("\nOne count list for both directions (the engineer picks a row; 2636 building 1 took 5 counts):")
+    print(" types   tons   counts")
+    for row in tc.type_options_shared(by_layer, a.most):
+        print(f"   {row['types']}    {row['tons']:5.1f}   {', '.join(map(str, row['counts']))}")
+        for name, v in row["per"].items():
+            text = "; ".join(f"{n}{sizes[name]} x {length}' at {k}" + ("" if kind == "typical" else " (own)")
+                             for n, length, k, kind in v["schedule"])
+            print(f"            {name} {v['tons']:5.1f} t: {text}")
 
 
 def cmd_plan(a):
@@ -290,16 +304,18 @@ def cmd_apply(a):
 
     for name in LAYERS:
         layer = cr.Layer.parse(name)
-        old = sr.user_bars(model, layer)
+        old = sr.user_bars(model, layer, sr.owned_footprints(a.work, layer))
         for b in old:
             b.delete()
         groups = [tc.ColumnGroup(**g) for g in state["layers"][name]]
-        for g in groups:
+        clusters = [tc.ColumnGroup(**g) for g in state.get("clusters", {}).get(name, [])]
+        for g in groups + clusters:
             draw(layer, g.a0, g.a1, g.b0, g.b1, g.size, g.elevation).count = g.count
         bands = [rg.from_dict(b) for b in state.get("bands", {}).get(name, [])]
         for g in bands:
             draw(layer, g.a0, g.a1, g.b0, g.b1, band_s.size, state["band_elevation"][name]).spacing = g.spacing(band_s)
         print(f"{name}: replaced {len(old)} user groups with {len(groups)} column groups"
+              + (f", {len(clusters)} groups away from columns" if clusters else "")
               + (f" and {len(bands)} bands" if bands else ""))
     sr.note(a.work, f"plan {n} applied")
 
@@ -326,21 +342,37 @@ def cmd_report(a) -> dict:
 
 
 def report(a, state: dict, path: Path) -> dict:
+    """What the program still adds, per direction: (real leftovers away from columns, noise, real over columns).
+
+    Over a column, a leftover whose footprint lies beside the column group's extent is reported as
+    "beside" (the engineer widens the group once over it; a second time it is the next strip's bar), not
+    as the column still needing bars. Away from columns, noise (``tc.is_noise``: one or two bars up to
+    10 ft, or a sliver under 3 ft wide) is counted but not chased: the engineer left 31 such on 2636.
+    """
     left_over = {}
     for name in LAYERS:
         layer = cr.Layer.parse(name)
         groups = [tc.ColumnGroup(**g) for g in state["layers"][name]]
+        clusters = [tc.ColumnGroup(**g) for g in state.get("clusters", {}).get(name, [])]
         overrides = br.overrides(a.work.parent, name)
         bars, loose, size, beam_bars = gather(path, layer, overrides)
         s = rg.Settings(size=size)
+        by_col = {g.column: g for g in groups}
         short = [c for c in bars if not (c.count <= s.peak_bars and c.length <= s.peak_length)]
+        beside = [c for c in short if c.column in by_col
+                  and min(c.a1, by_col[c.column].a1) - max(c.a0, by_col[c.column].a0) < 0.5 * (c.a1 - c.a0)]
+        short = [c for c in short if c not in beside]
         loose, waived = sr.split_waived(loose, sr.load_transitions(state.get("verdicts"), layer))
-        real_loose = [d for d in loose if not rg.is_peak(d, s)]
-        left_over[name] = (real_loose, [d for d in loose if rg.is_peak(d, s)], bars)
+        noise = [d for d in loose if rg.is_peak(d, s) or tc.is_noise(d)]
+        real_loose = [d for d in loose if d not in noise]
+        left_over[name] = (real_loose, noise, short + beside)
         left = len(bars) + len(loose)
-        print(f"{name}: {len(groups)} column groups, {tc.tons(groups):.1f} tons; program left: {left} groups "
-              f"({len(short)} real over columns, {len(real_loose)} real elsewhere, "
-              f"{left - len(short) - len(real_loose)} peaking)")
+        print(f"{name}: {len(groups)} column groups, {tc.tons(groups):.1f} tons"
+              + (f"; {len(clusters)} groups away from columns, {tc.tons(clusters):.1f} tons" if clusters else "")
+              + f"; program left: {left} groups ({len(short)} real over columns, {len(beside)} beside a column group, "
+              f"{len(real_loose)} real elsewhere, {left - len(short) - len(beside) - len(real_loose)} noise)")
+        if clusters:
+            print("   away from columns: " + "; ".join(f"{c} at {k}" for c, k in tc.schedule(clusters)))
         bands = state.get("bands", {}).get(name)
         if bands:
             band_s = sr.settings_of({"settings": state["band_settings"]})
@@ -348,6 +380,13 @@ def report(a, state: dict, path: Path) -> dict:
         for c in short:
             x, y = layer.to_plan(c.a, c.b)
             print(f"   column at ({x:.1f},{y:.1f}) still needs {c.count}{size} x {c.length:.1f}'")
+        for c in beside:
+            g = by_col[c.column]
+            x, y = layer.to_plan(c.a, c.b)
+            gap = max(g.a0 - c.a1, c.a0 - g.a1, 0.0)
+            print(f"   beside the group at ({x:.1f},{y:.1f}), {gap:.1f} ft across: {c.count}{size} x {c.length:.1f}' "
+                  + ("(group already widened once: the next strip's bar)" if g.widened
+                     else "(capturing widens the group once over it and moves it up a count)"))
         for d in real_loose:
             print("   elsewhere", sr.describe(d, layer))
         if beam_bars:
@@ -375,7 +414,8 @@ def capture_columns(a, state: dict, name: str, over_columns: list, peaks: list) 
                for g in grown] + fresh
     on_slab = lambda p, q: mesh.thickness(*layer.to_plan(p, q)) is not None
     retyped = {g.column: g for g in tc.typed(demands, tuple(state["typical"]), on_slab,
-                                             tb.end_columns(base, layer), own=frozenset(longer))}
+                                             tb.end_columns(base, layer), own=frozenset(longer),
+                                             widened=frozenset(g.column for g in grown if g.widened))}
     final = [retyped[g.column] if g.column in changed else g for g in groups] + [retyped[c.column] for c in fresh]
     for old in groups:
         new = retyped[old.column]
@@ -438,6 +478,66 @@ def cmd_run(a):
     cmd_verify(a)
 
 
+def cmd_clusters(a):
+    """Count groups for the program top bars away from columns, from the newest round; earlier clusters grow."""
+    n, state = load_state(a.work)
+    rounds = latest(a.work, "round", "cpt")
+    if not rounds:
+        raise SystemExit("no round-N.cpt yet: run the column groups first")
+    source = a.work / f"round-{rounds}.cpt"
+    base = a.work / "base.cpt"
+    mesh = cr.Mesh(base)
+    state.setdefault("clusters", {})
+    state.setdefault("cluster_length", {})
+    asked = dict(zip(LAYERS, a.cluster_length or []))
+    for name in LAYERS:
+        layer = cr.Layer.parse(name)
+        overrides = br.overrides(a.work.parent, name)
+        _, loose, size, _ = gather(source, layer, overrides)
+        loose, _ = sr.split_waived(loose, sr.load_transitions(state.get("verdicts"), layer))
+        # the column groups first: a stray alongside one adds to its count, one beside it widens it once
+        # (2636: 10#8 to 12#8 and 15#8 over the strays beside two columns), the rest is clustered
+        loose = capture_columns(a, state, name, [], loose)
+        standard = asked.get(name) or state["cluster_length"].get(name) or tc.standard_length(loose)
+        state["cluster_length"][name] = standard
+        seeds = []
+        for g in (tc.ColumnGroup(**g) for g in state["clusters"].get(name, [])):
+            d = cr.Demand(g.a0, g.a1, g.b0, g.b1, g.count, g.size, "seed")
+            d.elevation = g.elevation
+            seeds.append(d)
+        on_slab = lambda p, q: mesh.thickness(*layer.to_plan(p, q)) is not None
+        walls = cr.walls(base, layer)
+        groups = tc.cluster_groups(seeds + loose, tuple(state["typical"]), standard, size, on_slab, walls)
+        state["clusters"][name] = [asdict(g) for g in groups]
+        print(f"{name}: {len(groups)} groups away from columns, {tc.tons(groups):.1f} tons, {standard:g}' long: "
+              + "; ".join(f"{c} at {k}" for c, k in tc.schedule(groups)))
+        for g in groups:
+            if g.a1 - g.a0 > 18.0:
+                x0, y0 = layer.to_plan(g.a0, g.b0)
+                x1, y1 = layer.to_plan(g.a1, g.b1)
+                print(f"   run over a wall, {g.a1 - g.a0:.0f} ft at x {min(x0, x1):.0f}-{max(x0, x1):.0f} "
+                      f"y {min(y0, y1):.0f}-{max(y0, y1):.0f}: {g.callout()} (about {12 * (g.a1 - g.a0) / g.count:.0f} in); "
+                      "the engineer sets these (2636 went one to two spacing steps tighter)")
+    save_state(a.work, n + 1, state, f"plan {n + 1}: count groups away from columns, {state['cluster_length']}")
+
+
+def cmd_run_clusters(a):
+    """clusters -> apply -> verify -> the column groups take what is beside them, until nothing real is left."""
+    for _ in range(a.rounds):
+        cmd_clusters(a)
+        cmd_apply(a)
+        left_over = cmd_verify(a)
+        if not any(real or over for real, _, over in left_over.values()):
+            print("nothing real left away from or over the columns; done")
+            return
+        n, state = load_state(a.work)
+        for name in LAYERS:
+            real, noise, over = left_over[name]
+            capture_columns(a, state, name, over, noise)
+        save_state(a.work, n + 1, state, f"plan {n + 1}: column groups took the leftovers beside them")
+    print(f"stopped after {a.rounds} rounds; review the last round")
+
+
 def cmd_run_bands(a):
     """apply -> verify -> absorb until the program adds nothing real away from columns."""
     for _ in range(a.rounds):
@@ -453,12 +553,16 @@ def cmd_run_bands(a):
 
 def main(argv=None):
     commands = {"options": cmd_options, "plan": cmd_plan, "apply": cmd_apply, "verify": cmd_verify, "run": cmd_run,
+                "clusters": cmd_clusters, "run-clusters": cmd_run_clusters,
                 "band-options": cmd_band_options, "bands": cmd_bands, "run-bands": cmd_run_bands,
                 "report": cmd_report, "merge-bands": cmd_merge_bands}
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=list(commands))
     p.add_argument("--work", required=True, type=Path, help="work folder holding base.cpt (no user top bars, calculated)")
-    p.add_argument("--typical", type=int, nargs="+", help="typical bar counts, e.g. 10 15")
+    p.add_argument("--typical", type=int, nargs="+", help="typical bar counts, one list for both directions, e.g. 5 7 10 15 20")
+    p.add_argument("--most", type=int, default=5, help="options: longest count list to price (default 5)")
+    p.add_argument("--cluster-length", type=float, nargs=2, metavar=("LONG", "LAT"),
+                   help="clusters: the one bar length per direction, even feet (default: commonest program length)")
     p.add_argument("--band-size", default="#9", help="bar size for the scattered bands, e.g. #7")
     p.add_argument("--option", type=int, nargs=2, metavar=("LONG", "LAT"),
                    help="bands: table row for top-long and top-lat (default: the knee row)")

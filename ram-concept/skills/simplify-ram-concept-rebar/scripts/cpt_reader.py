@@ -80,6 +80,15 @@ def bars(path: Path, layer: Layer, designed_by: int) -> list[Demand]:
     return out
 
 
+def walls(path: Path, layer: Layer) -> list:
+    """Wall centrelines of a saved model in the layer's local feet: ((a0, b0), (a1, b1))."""
+    out = []
+    for p0, p1 in connect(path).execute("select Point0, Point1 from Wall"):
+        (x0, y0), (x1, y1) = _points(p0)[0], _points(p1)[0]
+        out.append((layer.to_local(x0, y0), layer.to_local(x1, y1)))
+    return out
+
+
 class Mesh:
     """Slab thickness (in) from saved mesh elements: what Concept designs with."""
     CELL = 5.0

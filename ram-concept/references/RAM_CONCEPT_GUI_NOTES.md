@@ -301,7 +301,12 @@ More from the reviewer:
 - A column close to a wall may not really be governed by punching, or the
   assumed penetration is not realistic there.
 - `Process > Calc Partial` is `Calc All` with options, including skipping
-  the warning pop-ups; quicker when only punching changed.
+  the warning pop-ups; quicker when only punching changed. The engineer's
+  calc after a bar layout change (2026-10-29): extent "+ Detailing", "Don't
+  interrupt calcs for warnings" and "Calculate only out-of-date items"
+  ticked, "Warnings invalidate calculations" not; no mesh. The API call is
+  `calc_partial(CalcLevel.DETAIL, True, True, False)`, what the rebar
+  engine's `calc_and_save` runs.
 - A 2 ft mesh helps some conditions and roughly doubles the element count.
 - After import from Modeler, review Mesh Input: openings and exterior slab
   edges.
