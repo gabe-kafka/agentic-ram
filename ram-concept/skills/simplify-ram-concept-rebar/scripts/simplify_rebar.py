@@ -133,8 +133,9 @@ def dedupe_live(model, layer: cr.Layer, tol: float = 0.3) -> list:
         if twin is None:
             kept.append((fp, key, b))
             continue
+        size = b.bar_type.name                                   # read before the delete: a deleted bar answers nothing
+        callout = f"{quantity}{size}" if by_count else f'{size} @{quantity * 12:g}"'
         b.delete()
-        callout = f"{quantity}{b.bar_type.name}" if by_count else f'{b.bar_type.name} @{quantity * 12:g}"'
         removed[twin[0]] = (callout, removed.get(twin[0], ("", 0))[1] + 1)
     return [(fp, callout, n) for fp, (callout, n) in removed.items()]
 
