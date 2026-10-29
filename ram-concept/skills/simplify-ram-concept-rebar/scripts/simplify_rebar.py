@@ -318,12 +318,11 @@ def cmd_baseline(a):
     old = user_bars(model, layer, owned_footprints(a.work, layer))
     for b in old:
         b.delete()
-    if dedupe_and_say(model, layer) and a.reuse_calc:
-        print("stacked copies removed: the current calc is stale, calculating")
+    deduped = dedupe_and_say(model, layer)
+    if a.reuse_calc and (old or deduped):
+        print(f"{a.layer}: {len(old)} user groups and {deduped} stacked copies removed; the current calc is stale, calculating")
         a.reuse_calc = False
     if a.reuse_calc:
-        if old:
-            raise SystemExit(f"{a.layer} has {len(old)} user groups; run baseline without --reuse-calc")
         model.save_file(str(a.work / "base.cpt"))
         note(a.work, "baseline: reused the current calc")
         secs = 0.0
