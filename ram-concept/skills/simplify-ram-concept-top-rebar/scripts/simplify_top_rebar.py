@@ -396,10 +396,13 @@ def report(a, state: dict, path: Path) -> dict:
             print("   elsewhere", sr.describe(d, layer))
         if beam_bars:
             print("   " + beam_note(beam_bars, layer, overrides))
-        for stack in cr.stacks(cr.bars(path, layer, cr.USER)):
+        stacks = cr.stacks(cr.bars(path, layer, cr.USER))
+        for stack in stacks:
             d = stack[0]
             x, y = layer.to_plan((d.a0 + d.a1) / 2, (d.b0 + d.b1) / 2)
             print(f"   STACKED: {len(stack)} copies of {d.count}{d.size} at ({x:.0f},{y:.0f}); run dedupe")
+        if stacks:
+            sr.note(a.work, f"STACKED: {name} has {len(stacks)} stacks, {sum(len(s) - 1 for s in stacks)} extra copies; dedupe")
     return left_over
 
 

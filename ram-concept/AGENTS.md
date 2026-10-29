@@ -213,3 +213,14 @@ folder.
 A Concept workflow becomes a proven repository skill only after it has explicit
 guards, preserves the source model, passes a controlled test, reopens
 successfully, and is visually or report-validated in RAM Concept.
+
+## The connector's page reads the work folders
+
+The JT-ENG connector's front end (`jt-eng-connector/server/jt_eng/dashboard.py`)
+builds its job cards from what the engine leaves in a work folder: `base.cpt`,
+`plan-N.json` or `columns-plan-N.json` (their `layers`, `clusters`, `bands`,
+`cluster_length`, `typical`), `round-N.cpt`, PNGs and the `events.jsonl` lines
+`sr.note` writes (`STACKED`, `dedupe`, `applied`, `stubborn`). A change to any
+of those files, keys or event texts is a change to the page: update the card in
+the connector in the same vendor commit (its `CLAUDE.md`, "The front end stays
+current"), and keep the engine's state events stable once the page reads them.
