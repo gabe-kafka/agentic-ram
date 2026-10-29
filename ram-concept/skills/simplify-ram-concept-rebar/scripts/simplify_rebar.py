@@ -139,6 +139,16 @@ def dedupe_live(model, layer: cr.Layer, tol: float = 0.3) -> list:
     return [(fp, callout, n) for fp, (callout, n) in removed.items()]
 
 
+def dedupe_and_say(model, layer: cr.Layer) -> int:
+    """Run dedupe_live and print each stack removed; returns the copies removed. Every baseline and apply calls it
+    after clearing the engine's own bars, so stacked copies never survive a round (2636 building 1, 2026-10-29)."""
+    removed = dedupe_live(model, layer)
+    for (a0, a1, b0, b1), callout, n in removed:
+        x, y = layer.to_plan((a0 + a1) / 2, (b0 + b1) / 2)
+        print(f"{layer.name}: removed {n} stacked {'copy' if n == 1 else 'copies'} of {callout} at ({x:.0f},{y:.0f})")
+    return sum(n for _, _, n in removed)
+
+
 def footprint(b, layer: cr.Layer) -> tuple:
     """A live bar's (a0, a1, b0, b1) in the layer's local feet, extent centred on the bar line as the engine draws it."""
     p0, p1 = b.location.start_point, b.location.end_point
@@ -306,6 +316,11 @@ def split_waived(demands, marks: dict):
 def cmd_baseline(a):
     model, layer = live_model(a.port), cr.Layer.parse(a.layer)
     old = user_bars(model, layer, owned_footprints(a.work, layer))
+    for b in old:
+        b.delete()
+    if dedupe_and_say(model, layer) and a.reuse_calc:
+        print("stacked copies removed: the current calc is stale, calculating")
+        a.reuse_calc = False
     if a.reuse_calc:
         if old:
             raise SystemExit(f"{a.layer} has {len(old)} user groups; run baseline without --reuse-calc")
@@ -313,8 +328,6 @@ def cmd_baseline(a):
         note(a.work, "baseline: reused the current calc")
         secs = 0.0
     else:
-        for b in old:
-            b.delete()
         note(a.work, f"baseline: cleared {len(old)} user groups, calc started")
         secs = calc_and_save(model, a.work / "base.cpt")
         note(a.work, f"baseline calc done in {secs:.0f}s")
@@ -383,6 +396,7 @@ def cmd_apply(a):
     old = user_bars(model, layer, owned_footprints(a.work, layer))
     for b in old:
         b.delete()
+    dedupe_and_say(model, layer)
     marks = load_transitions(state.get("verdicts"), layer)
     if any("ends" not in g for g in state.get("beam_groups", [])):      # plans written before ends were kept
         base = a.work / "base.cpt"

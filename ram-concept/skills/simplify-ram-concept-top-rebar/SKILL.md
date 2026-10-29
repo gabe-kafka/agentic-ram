@@ -44,12 +44,14 @@ slab has concrete beams. What matters here:
   as its own: it does, by the footprints in this work folder's plans
   (`owned_footprints`). Before that (2636 building 1, 2026-10-28) four rounds
   stacked the eight latitude groups on the beam lines four deep, and the
-  stack went into the production model. Every report now ends with any
-  `STACKED: n copies of ... at (x,y)` it finds in the saved round; `dedupe`
-  deletes the extra copies in the live session (same footprint, count and
+  stack went into the production model. Dedupe is automatic now: every
+  `baseline` and `apply` deletes stacked copies (same footprint, count and
   depth keep one, the engineer's beam bars included since their rows differ
-  in depth), and `--calc` verifies after. Run it on any model that was
-  worked before 2026-10-29.
+  in depth) after clearing the engine's bars and says what it removed; a
+  baseline that removes copies recalculates instead of reusing the calc.
+  Every report ends with any `STACKED: n copies of ... at (x,y)` left in
+  the saved round, which after this is a bug. `dedupe` (with `--calc`) is
+  the same step on its own, for a model worked elsewhere before 2026-10-29.
 
 Ryan's note also covers the rest of the top steel: continuous runs over
 walls, and group the top bars over columns as much as possible.

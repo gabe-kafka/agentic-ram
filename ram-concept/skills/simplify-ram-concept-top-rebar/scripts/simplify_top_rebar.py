@@ -27,7 +27,9 @@ Away from columns as bands by spacing (the older way, like the bottom layers):
   verify   calc, save round-N.cpt, report what the program still adds
   report   the same report on the latest saved round, without calculating
   dedupe   delete stacked copies of user top bars in the live session (same footprint, count, depth), both
-           directions; --calc verifies after. The report flags stacks in a saved round.
+           directions; --calc verifies after. Every baseline and apply does this on its own after clearing
+           the engine's bars; the command is for a model worked elsewhere. The report flags stacks in a
+           saved round.
 
 Beam columns and "no bar called out" overrides follow ../clean-up-ram-concept-t-beams
 (t_beam_cleanup.py override ...); the record is decisions.json beside the work folders.
@@ -309,6 +311,7 @@ def cmd_apply(a):
         old = sr.user_bars(model, layer, sr.owned_footprints(a.work, layer))
         for b in old:
             b.delete()
+        sr.dedupe_and_say(model, layer)
         groups = [tc.ColumnGroup(**g) for g in state["layers"][name]]
         clusters = [tc.ColumnGroup(**g) for g in state.get("clusters", {}).get(name, [])]
         for g in groups + clusters:
@@ -490,12 +493,9 @@ def cmd_dedupe(a):
     total = 0
     for name in LAYERS:
         layer = cr.Layer.parse(name)
-        removed = sr.dedupe_live(model, layer)
-        for (a0, a1, b0, b1), callout, n in removed:
-            x, y = layer.to_plan((a0 + a1) / 2, (b0 + b1) / 2)
-            print(f"{name}: removed {n} stacked {'copy' if n == 1 else 'copies'} of {callout} at ({x:.0f},{y:.0f})")
-            total += n
-        if not removed:
+        n = sr.dedupe_and_say(model, layer)
+        total += n
+        if not n:
             print(f"{name}: no stacked copies")
     sr.note(a.work, f"dedupe: removed {total} stacked copies")
     if total and a.calc:

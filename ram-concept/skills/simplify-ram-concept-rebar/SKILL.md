@@ -97,7 +97,10 @@ written again.
   pass `owned_footprints(work, layer)`, the footprints of every group this
   work folder's plans ever drew. Without it a group drawn at a beam column
   could not be deleted the next round and stacked (2636 building 1,
-  2026-10-28: eight top groups four deep in the production model).
+  2026-10-28: eight top groups four deep in the production model). Every
+  `baseline` and `apply` also runs `dedupe_and_say` after clearing: bars
+  drawn on top of each other (same footprint, quantity, depth) keep one
+  copy, whoever drew them; identical copies are never meant.
 
 - **Bar depth follows the thinnest slab under the group.** Concept places
   each concentrated group at one elevation: the one that fits the thinnest
