@@ -34,13 +34,26 @@ deflection, and reinforcement after each meaningful iteration.
 
 ## Deflection (office PDF)
 
-- Maximum plotted deflection: 2 in.
-- Sustained plus immediate live minus initial dead: `L/240`, and `L/480` at
-  the perimeter.
-- Immediate live: `L/360`.
+The limits are the JTE standard (`shared/JTE_DEFLECTION_LIMITS.md`, from
+`S:\02_Design\01_JTE Standards\Design Standards\Loads and Deflections\Deflections.pdf`).
+The load history steps are the ones in the slab options workflow:
+Construction, DL Attachment, Immediate LL, Sustained Loads, Sustained +
+Immediate LL.
 
-A brick `L/600` plot appears in some examples. Confirm it per project. If a
-span fails, consider beams, higher `f'c`, thickness, columns, or walls.
+| Plan to read | Limit |
+|---|---|
+| Sustained + Immediate LL (total long-term, nothing subtracted) | 2 in max, regardless of the initial DL deflection |
+| Sustained + Immediate LL minus DL Attachment | L/240; L/480 on perimeter spans |
+| Immediate LL | L/360, and 3/4 in max at exterior conditions |
+| Immediate total load, where the slab supports brick or CMU | L/600 or 0.5 in, whichever is less |
+
+- Cantilevers: twice the allowable deflection (the limits assume simple spans).
+- Calc with the extent at `+ Load History Δ`; Calc All skips long-term
+  deflection. Read the plots under `Layers > Load History Deflections`.
+- The brick `L/600` plot in some examples is the brick/CMU row above: it
+  applies where the slab carries brick or CMU, as an immediate total load check.
+
+If a span fails, consider beams, higher `f'c`, thickness, columns, or walls.
 
 Difference plots must subtract the correct attachment loading. Wrong
 attachment layer = wrong difference.

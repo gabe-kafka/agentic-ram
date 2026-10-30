@@ -104,6 +104,14 @@ and Concept gravity forces meet in the Concrete wall module, not in Frame.
   (eqs 12.8-2/3/5), k, total W, story forces per case, and the wind
   pressures with Kz, G and natural frequency.
 
+## Office drift limits
+
+The JTE standard (`shared/JTE_DEFLECTION_LIMITS.md`): story drift, wind at
+the building corners and seismic at the centre. Wind H/600 for brittle
+finishes and H/400 for flexible, on 0.6W (or the 50-year MRI speed in RAM's
+drift provisions). Seismic 1.0E with allowable drift 0.020 / 0.015 / 0.010
+h Ie / Cd for risk category I-II / III / IV, and 0.007 h Ie / Cd for masonry.
+
 ## Drift at control points (*seen* 2026-10-20, 2612_08 Lateral, RAM 26)
 
 - `Process > Results > Drift > At Control Points`: a grid of **10** points
