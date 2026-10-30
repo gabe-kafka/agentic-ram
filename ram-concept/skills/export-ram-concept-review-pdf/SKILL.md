@@ -79,15 +79,18 @@ calculated models, then:
     python scripts/rebar_compare.py <exports> <out.pdf> <before.cpt> <after.cpt> --title "<job: change>"
 
 `<exports>` holds `before-top-long.pdf` ... `after-bot-lat.pdf`, one page
-each. Out: a summary page, then each plan's BEFORE and AFTER page as Concept
-printed it. Each AFTER program group is matched to the BEFORE group at its
+each. Out: a summary page, then one A1 sheet per plan with the BEFORE plan
+left and the AFTER plan right, as Concept printed them, at one scale, each
+under a big red label (BEFORE LONG TOP, AFTER LONG TOP, ...; 100 pt red
+Helvetica Text Box, no border, the engineer's hand style from the landscape
+loading set). Each AFTER program group is matched to the BEFORE group at its
 place (same size, centre within 1.5 ft): new, more or fewer bar-ft, moved,
 gone. New and more get red Highlight markups, new loads green outlines, all
 editable in Bluebeam. Plan feet are fitted to the page from the slab
 outline, so any print scale works if the plan is on one sheet. One model:
-the summary and its four pages. First run: 2636 building 3 landscape loads
-(2026-10-30), `Landscape-Loading³6_03_Required Reinf_Before vs After_RAM
-exports_2026-10-30.pdf`.
+the summary and its four plans, labelled. First run: 2636 building 3
+landscape loads (2026-10-30), `Landscape-Loading/2636_03_Required
+Reinf_Before vs After_side by side_2026-10-30.pdf`.
 
 How the exports were made (Claude driving Concept, engineer off the PC,
 about 10 min for eight pages):

@@ -12,10 +12,12 @@ Each AFTER program bar group is matched to the BEFORE group at its place (same s
 NEAR ft): new (none there), more (more bar-feet), less (fewer), moved (same steel, shifted), or the
 same (within TOL ft); BEFORE groups no AFTER group matched are gone.
 Out: a summary page (groups, bars and bar-feet per plan, the counts above, and the new and more
-groups listed), then per plan the BEFORE page and the AFTER page as Concept printed them. On AFTER
-pages each new or more group gets a red Highlight markup, and the new loads (area and point loads in
-AFTER, not in BEFORE) a green outline; a red Text Box names the model and the count. All markups stay
-editable in Bluebeam. With one model: the summary and its four pages, unmarked.
+groups listed), then one A1 sheet per plan: the BEFORE plan on the left and the AFTER plan on the
+right, as Concept printed them, at one scale, each under a big red label (BEFORE LONG TOP, ...).
+On the AFTER plan each new or more group gets a red Highlight markup, and the new loads (area and
+point loads in AFTER, not in BEFORE) a green outline; a red Text Box under each label names the model
+and the count. All markups stay editable in Bluebeam. With one model: the summary and its four plans,
+labelled, no other markups.
 Plan feet are fitted to page points from the slab outline: the colour whose drawn extents match the
 mesh extents at one scale in x and y.
 """
@@ -27,6 +29,7 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
 import pymupdf
 
 HERE = Path(__file__).resolve().parent
@@ -43,6 +46,10 @@ PAD = 1.0                        # ft around a highlighted bar group
 NEAR = 1.5                       # ft between centres for an AFTER group to be the BEFORE group at its place
 TOL = 0.05                       # ft (and bar-ft) below which a difference is no change
 RED_FOR = ("new", "more")
+SHEET = (2384, 1684)             # A1 landscape, pt
+MARGIN, GAP = 40, 60             # pt round the sheet and between the plans
+LABEL = 100                      # pt, the red plan label (as the engineer marks the set by hand)
+BAND = 230                       # pt above the plans for the label and the model note
 
 
 def centre(d):
@@ -123,9 +130,36 @@ class Model:
             self.prog[name] = cr.bars(self.path, layer, cr.PROGRAM)
 
 
-def mark(page, model, name, new, loads, label, shown):
-    """Red highlights on the new program bars, green outlines on the new loads, one red note."""
-    to_page, k = fit(page, model.path)
+def plan_area(page):
+    """The printed plan with its title block: the inked extent of the page, less the file-name header
+    and the page footer, which Concept right-aligns at the sheet edge."""
+    pix = page.get_pixmap(dpi=36, annots=False, colorspace=pymupdf.csGRAY)
+    ink = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width) < 245
+    k = 36 / 72
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            x0, y0, x1, y1 = line["bbox"]
+            if x1 >= page.rect.width - 60:
+                ink[max(int(y0 * k) - 1, 0):int(y1 * k) + 2, max(int(x0 * k) - 1, 0):int(x1 * k) + 2] = False
+    ys, xs = np.nonzero(ink)
+    r = pymupdf.Rect(xs.min() / k, ys.min() / k, (xs.max() + 1) / k, (ys.max() + 1) / k)
+    return (r + (-8, -8, 8, 8)) & page.rect
+
+
+def label(page, rect, text):
+    """A big red Text Box, Helvetica, no border, no fill."""
+    a = page.add_freetext_annot(rect, text, fontsize=LABEL, fontname="helv", text_color=RED, border_width=0)
+    a.set_info(title=bm.AUTHOR, subject="Text Box", content=text)
+    a.update()
+
+
+def mark(page, place, src, model, name, new, loads):
+    """Red highlights on the new program bars, green outlines on the new loads, on the sheet.
+    `place` takes a point of the source page `src` to the sheet."""
+    fitted, k = fit(src, model.path)
+
+    def to_page(x, y):
+        return place(fitted(x, y))
     layer = cr.Layer.parse(name)
     for d in new:
         a = layer.to_plan(d.a0 - PAD, d.b0 - PAD)
@@ -146,12 +180,30 @@ def mark(page, model, name, new, loads, label, shown):
         a.set_border(width=1.5)
         a.set_info(title=bm.AUTHOR, subject="Ellipse", content=f"NEW PT LOAD {-kips:g}k")
         a.update(opacity=0.8)
-    text = f"**{label}** - {shown}"
-    if new is not None and label == "AFTER":
-        text += f"\n{len(new)} PROG. BAR GROUPS NEW OR MORE vs BEFORE (RED)"
-        if areas or points:
-            text += f"\nNEW LOADS (GREEN): {len(areas)} AREA, {len(points)} PT"
-    bm.note(page, (page.rect.width - 600, 40), text)
+
+
+def sheet(out, srcs, titles, notes, marks):
+    """One A1 sheet: the source pages' plans side by side at one scale, BEFORE left, each under its
+    red label and model note. `marks[i]` adds markups for plan i given (sheet, place, source page)."""
+    page = out.new_page(width=SHEET[0], height=SHEET[1])
+    clip = pymupdf.Rect()
+    for s in srcs:
+        clip |= plan_area(s)
+    n = len(srcs)
+    col = (SHEET[0] - 2 * MARGIN - GAP * (n - 1)) / n
+    k = min(col / clip.width, (SHEET[1] - 2 * MARGIN - BAND) / clip.height)
+    w, h = clip.width * k, clip.height * k
+    for i, s in enumerate(srcs):
+        x0 = MARGIN + i * (col + GAP)
+        px, py = x0 + (col - w) / 2, MARGIN + BAND
+        page.show_pdf_page(pymupdf.Rect(px, py, px + w, py + h), s.parent, s.number, clip=clip)
+        if i:
+            page.draw_line((x0 - GAP / 2, MARGIN), (x0 - GAP / 2, SHEET[1] - MARGIN), color=(0.6, 0.6, 0.6), width=1)
+        label(page, pymupdf.Rect(x0, MARGIN, x0 + col, MARGIN + LABEL * 1.25), titles[i])
+        bm.text_box(page, x0, MARGIN + LABEL * 1.25 + 4, col, notes[i])
+        if marks[i]:
+            marks[i](page, lambda q, px=px, py=py: pymupdf.Point(px + (q.x - clip.x0) * k, py + (q.y - clip.y0) * k), s)
+    return page
 
 
 def summary(path, rows, changes, title, names, loads, compare):
@@ -222,19 +274,24 @@ def main():
     try:
         summary(work / "summary.pdf", rows, changes, a.title, names, loads, compare)
         out = pymupdf.open(work / "summary.pdf")
-        for name, label in PLANS:
-            for i, tag in enumerate(tags):
+        for name, plan in PLANS:
+            srcs = []
+            for tag in tags:
                 src = pymupdf.open(pages[(tag, name)])
                 if len(src) != 1:
                     raise SystemExit(f"{pages[(tag, name)].name}: {len(src)} pages; export at a scale that fits one sheet")
-                page = src[0]
-                if compare:
-                    mark(page, models[i], name, news[name] if tag == "after" else [], loads if tag == "after" else ([], []),
-                         tag.upper(), names[i])
-                tmp = work / f"{tag}-{name}.pdf"
-                src.save(tmp)
-                src.close()
-                out.insert_pdf(pymupdf.open(tmp))
+                srcs.append(src[0])
+            words = " ".join(reversed(plan.split())).upper()            # Top Long -> LONG TOP
+            titles = [f"{tag.upper()} {words}" if compare else words for tag in tags]
+            notes = [f"**{tag.upper()}** - {names[i]}" if compare else names[i] for i, tag in enumerate(tags)]
+            marks = [None] * len(tags)
+            if compare:
+                areas, points = loads
+                notes[1] += f"\n{len(news[name])} PROG. BAR GROUPS NEW OR MORE vs BEFORE (RED)"
+                if areas or points:
+                    notes[1] += f"\nNEW LOADS (GREEN): {len(areas)} AREA, {len(points)} PT"
+                marks[1] = lambda pg, place, src, name=name: mark(pg, place, src, models[1], name, news[name], loads)
+            sheet(out, srcs, titles, notes, marks)
         out.save(work / "out.pdf", garbage=3, deflate=True)
         out.close()
         shutil.copyfile(work / "out.pdf", a.out)
@@ -251,7 +308,7 @@ def main():
             print(f"{label} new or more: " + "; ".join(new))
     if compare:
         print(f"new loads in AFTER: {len(loads[0])} area, {len(loads[1])} point")
-    print(f"saved {a.out} ({1 + len(PLANS) * len(tags)} pages)")
+    print(f"saved {a.out} ({1 + len(PLANS)} pages)")
 
 
 if __name__ == "__main__":
