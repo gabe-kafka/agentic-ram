@@ -69,6 +69,42 @@ Useful to look at before sending the set:
 - Program bars still generated where user bars were drawn: iterate, do not
   double-reinforce.
 
+## Required bars, BEFORE vs AFTER, on Concept's own pages
+
+When a change (new loads, a new bar layout) needs the reviewer to see what
+it did to the required bending bars, export the four review plans (Top
+Long, Top Lat, Bot Long, Bot Lat; `add-ram-concept-rebar-plans`) of both
+calculated models, then:
+
+    python scripts/rebar_compare.py <exports> <out.pdf> <before.cpt> <after.cpt> --title "<job: change>"
+
+`<exports>` holds `before-top-long.pdf` ... `after-bot-lat.pdf`, one page
+each. Out: a summary page, then each plan's BEFORE and AFTER page as Concept
+printed it. Each AFTER program group is matched to the BEFORE group at its
+place (same size, centre within 1.5 ft): new, more or fewer bar-ft, moved,
+gone. New and more get red Highlight markups, new loads green outlines, all
+editable in Bluebeam. Plan feet are fitted to the page from the slab
+outline, so any print scale works if the plan is on one sheet. One model:
+the summary and its four pages. First run: 2636 building 3 landscape loads
+(2026-10-30), `Landscape-Loading³6_03_Required Reinf_Before vs After_RAM
+exports_2026-10-30.pdf`.
+
+How the exports were made (Claude driving Concept, engineer off the PC,
+about 10 min for eight pages):
+
+- Work on local copies of the .cpt files, never the job folder: Concept
+  writes a `.lock` beside what it opens. Keep the job's file names on the
+  copies: the page header prints the open file's name (`--names` relabels
+  the notes, not Concept's header).
+- A copy opened outside RAM Manager asks to break the RSS link: answer No.
+- Program bars show on a reopened, calculated .cpt; no calc needed.
+- 1:150 on A1 tiled building 3 (285 x 278 ft) onto two pages; 1:175 fits
+  one. `View > Print Scale...`, `Set for all plans`, once per model; the
+  scale change is not saved unless the model is.
+- Bluebeam opens every exported PDF and takes the focus: bring the Concept
+  window back by its process id (`WScript.Shell.AppActivate(pid)`), not by
+  app name, when another Concept window is open.
+
 ## Automation notes (not proven; for a later tool)
 
 - Concept's menus answer UI Automation by name (`Report > Setup PDF Export...`,
@@ -79,7 +115,8 @@ Useful to look at before sending the set:
   `WM_SETTEXT` and pressing Save once saved the typed path and twice saved
   the default name `export.pdf` in the last folder. Typing into the box
   (focus, select all, type the name, Enter) saved reliably, but that is real
-  keystrokes: only with the engineer away from the PC.
+  keystrokes: only with the engineer away from the PC. Proven on eight
+  exports, 2026-10-30: click the box, Ctrl+A, type the full path, Enter.
 - Opening a plan: double-click its tree item; a tree item may expose
   `SelectionItemPattern`, not yet tried.
 - An existing file name raises Concept's "replace the existing file?" box,
